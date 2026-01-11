@@ -30,7 +30,10 @@ export const GameOver = ({ hasWon }: { hasWon: boolean }) => {
                 )}
 
                 <button
-                    onClick={() => window.location.reload()}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        window.location.reload();
+                    }}
                     className={`px-8 py-3 font-bold rounded uppercase tracking-wider transition-colors border-2 
                         ${hasWon
                             ? 'bg-yellow-700 hover:bg-yellow-600 border-yellow-500 text-white'

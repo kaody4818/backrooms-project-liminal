@@ -1,6 +1,6 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Raycaster, Vector2 } from 'three';
 import { useGameStore } from '../../store/gameStore';
 
@@ -8,13 +8,28 @@ export const InteractionManager = () => {
     const { camera, scene } = useThree();
     const raycaster = useState(() => new Raycaster())[0];
     const center = new Vector2(0, 0); // Center of screen
-    const { setInteractionText, readingNote, setReadingNote, setHasWon } = useGameStore();
+    const { setInteractionText, readingNote, setReadingNote, setHasWon, isGameOver } = useGameStore();
+    const prevReadingNote = useRef<any>(null);
+
+    // WIN LOGIC: Trigger when closing the Manila Note
+    useEffect(() => {
+        if (prevReadingNote.current?.title === "Entry #418" && !readingNote) {
+            setHasWon(true);
+        }
+        prevReadingNote.current = readingNote;
+    }, [readingNote, setHasWon]);
 
     // Key listener for 'E' or Click
     useEffect(() => {
         const handleInteraction = (e: KeyboardEvent | MouseEvent) => {
-            if (readingNote) {
+            const state = useGameStore.getState();
+            // Critical: Check fresh state to allow UI buttons to work without triggering world interaction
+            if (state.isGameOver || state.isMenuOpen || state.isPaused) return;
+
+            if (state.readingNote) {
                 // If reading, any interaction closes it? Or specifically Escape/Click
+                // Actually, Note UI handles its own close click. 
+                // We just handle Escape/E here for convenience?
                 if ((e as KeyboardEvent).code === 'Escape' || (e as KeyboardEvent).code === 'KeyE') {
                     setReadingNote(null);
                 }
@@ -43,10 +58,7 @@ export const InteractionManager = () => {
                         };
                         setReadingNote(noteData);
 
-                        // WIN CONDITION triggered by reading the Manila note
-                        if (noteData.title === "Entry #418") {
-                            setHasWon(true);
-                        }
+                        // Win triggers on close (useEffect above)
                     }
                 }
             }
@@ -58,7 +70,7 @@ export const InteractionManager = () => {
             window.removeEventListener('keydown', handleInteraction);
             window.removeEventListener('mousedown', handleInteraction);
         };
-    }, [camera, scene, readingNote, setReadingNote, setHasWon]);
+    }, [camera, scene, setReadingNote]);
 
     useFrame(() => {
         if (readingNote) {

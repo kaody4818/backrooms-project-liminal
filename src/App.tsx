@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { AmbientSound } from './components/audio/AmbientSound';
 import { VHSEffects } from './components/effects/VHSEffects';
 import { SanityManager } from './components/logic/SanityManager';
+import { AchievementManager } from './components/logic/AchievementManager'; // Import
 import { Player } from './components/player/Player';
 
 import { InteractionManager } from './components/interaction/InteractionManager';
@@ -139,6 +140,7 @@ function App() {
 
       <AmbientSound />
       <SanityManager />
+      <AchievementManager />
 
       {isMenuOpen && <MainMenu />}
 
