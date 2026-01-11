@@ -16,6 +16,7 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
         mass: 1,
         type: 'Dynamic',
         position,
+        args: [0.6], // Radius 0.6 (Default was 1.0)
         linearDamping: 0,
         angularDamping: 0,
         allowSleep: false,
@@ -31,20 +32,21 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
     const smoothedVel = useRef(new Vector3(0, 0, 0));
 
     // Store
-    const { isMenuOpen, isGameOver, isPaused, setPaused } = useGameStore();
+    const { isMenuOpen, isGameOver, isPaused, setPaused, setHealth, readingNote } = useGameStore();
+    const isControlsLocked = !isMenuOpen && !isGameOver && !isPaused && !readingNote;
 
     // Pause Detection via Pointer Lock
     useEffect(() => {
         const handlePointerLockChange = () => {
-            if (!document.pointerLockElement && !isMenuOpen && !isGameOver) {
-                // If lock is lost and we are in-game, pause.
+            if (!document.pointerLockElement && isControlsLocked) {
+                // If lock is lost and we SHOULD be locked, pause.
                 setPaused(true);
             }
         };
 
         document.addEventListener('pointerlockchange', handlePointerLockChange);
         return () => document.removeEventListener('pointerlockchange', handlePointerLockChange);
-    }, [isMenuOpen, isGameOver, setPaused]);
+    }, [isControlsLocked, setPaused]);
 
     // Audio Context for Footsteps
     const audioContext = useRef<AudioContext | null>(null);
@@ -59,7 +61,7 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
 
         // Input Listeners
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (isPaused) return; // Ignore inputs when paused
+            if (!isControlsLocked) return; // Ignore inputs when controls are not locked
             switch (e.code) {
                 case 'KeyW': input.current.forward = true; break;
                 case 'KeyS': input.current.backward = true; break;
@@ -67,7 +69,7 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
                 case 'KeyD': input.current.right = true; break;
                 case 'Space': input.current.jump = true; break;
                 case 'ShiftLeft': input.current.run = true; break;
-                // DEBUG TELEPORT
+                // DEBUG TELEPORT (Manila Room)
                 case 'KeyK':
                     if (exitPos) {
                         console.log("Teleporting to Manila Room...");
@@ -75,10 +77,23 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
                         api.velocity.set(0, 0, 0);
                     }
                     break;
+                // DEBUG TELEPORT (Level 0.2 Portal)
+                case 'KeyP':
+                    console.log("Teleporting to Level 0.2 Portal...");
+                    // Target: Floor at (8,9) facing the Wall at (8,8)
+                    // (8,9) World Pos: x = -12.5, z = -7.5
+                    api.position.set(-12.5, 1.5, -7.5);
+                    api.velocity.set(0, 0, 0);
+                    break;
+                // DEBUG DAMAGE
+                case 'KeyL':
+                    console.log("Debug: Taking Damage");
+                    setHealth(h => h - 10);
+                    break;
             }
         };
         const handleKeyUp = (e: KeyboardEvent) => {
-            if (isPaused) {
+            if (!isControlsLocked) {
                 // Reset inputs if paused so player doesn't keep running
                 input.current.forward = false;
                 input.current.backward = false;
@@ -106,7 +121,7 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
-    }, [exitPos, api, isPaused]);
+    }, [exitPos, api, isControlsLocked]);
 
     const playFootstep = (isWood: boolean) => {
         if (!audioContext.current) return;
@@ -147,7 +162,7 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
     };
 
     useFrame((state) => {
-        if (isMenuOpen || isGameOver || isPaused) {
+        if (!isControlsLocked) {
             // If paused, ensure velocity is zeroed out so we don't slide?
             // api.velocity.set(0,0,0); // Optional, might be abrupt. Friction will stop us.
             return;
@@ -156,7 +171,21 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
         // ... rest of useFrame
 
         // Sync camera strictly to physics body
-        camera.position.set(pos.current[0], pos.current[1] + 1.6, pos.current[2]);
+        camera.position.set(pos.current[0], pos.current[1] + 0.9, pos.current[2]);
+
+        // Screen Shake (Position Only - Safe)
+        const trauma = useGameStore.getState().shakeIntensity;
+        if (trauma > 0) {
+            const shake = trauma * trauma;
+            const range = 0.2 * shake;
+            camera.position.x += (Math.random() * 2 - 1) * range;
+            camera.position.y += (Math.random() * 2 - 1) * range;
+            camera.position.z += (Math.random() * 2 - 1) * range;
+
+            useGameStore.setState({ shakeIntensity: Math.max(0, trauma - 0.015) });
+        }
+
+
 
         const { forward, backward, left, right, jump, run } = input.current;
 
@@ -214,7 +243,7 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
 
     return (
         <>
-            <PointerLockControls />
+            {isControlsLocked && <PointerLockControls />}
             <mesh ref={ref} />
         </>
     );

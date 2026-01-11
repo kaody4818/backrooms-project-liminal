@@ -7,11 +7,15 @@ import {
     createWallpaperTexture,
     createManilaWallTexture,
     createWoodFloorTexture,
-    createCeilingTileTexture
+    createCeilingTileTexture,
+    createWhitePaintTexture,
+    createRedCarpetTexture
 } from '../../utils/textureGenerator';
 import { ShadowMan } from '../entities/ShadowMan';
 import { Note } from './Note';
 import { FluorescentLight } from './FluorescentLight';
+import { useGameStore } from '../../store/gameStore';
+import { PortalDoor } from '../entities/PortalDoor';
 
 // Helper: Textured Plane (Floor)
 function TexturedPlane({ args, textureUrl, repeats = 1, ...props }: any) {
@@ -137,24 +141,38 @@ function Table({ position }: { position: [number, number, number] }) {
 
 // Main Component
 export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number, number] }) => {
+    const currentLevel = useGameStore(state => state.currentLevel);
+    const CellHalf = CELL_SIZE / 2;
+
     // Generate floor size based on map size
     const floorSize = map.length * CELL_SIZE;
 
     // Generate Textures ONCE
-    const { wallpaperUrl, carpetUrl, manilaWallUrl, woodFloorUrl, ceilingUrl } = useMemo(() => ({
+    const {
+        wallpaperUrl, carpetUrl, manilaWallUrl, woodFloorUrl, ceilingUrl,
+        whitePaintUrl, redCarpetUrl
+    } = useMemo(() => ({
         wallpaperUrl: createWallpaperTexture(),
         carpetUrl: createCarpetTexture(),
         manilaWallUrl: createManilaWallTexture(),
         woodFloorUrl: createWoodFloorTexture(),
         ceilingUrl: createCeilingTileTexture(),
+        whitePaintUrl: createWhitePaintTexture(),
+        redCarpetUrl: createRedCarpetTexture(),
     }), []);
 
-    const wallpaperTexture = useMemo(() => {
-        const t = new TextureLoader().load(wallpaperUrl);
+    // Select Active Textures based on Level
+    const activeWallUrl = currentLevel === 'LEVEL_0_2' ? whitePaintUrl : wallpaperUrl;
+    const activeFloorUrl = currentLevel === 'LEVEL_0_2' ? redCarpetUrl : carpetUrl;
+
+    // Wall Material Texture
+    const wallTexture = useMemo(() => {
+        const t = new TextureLoader().load(activeWallUrl);
         t.magFilter = NearestFilter;
         return t;
-    }, [wallpaperUrl]);
+    }, [activeWallUrl]);
 
+    // Manila Wall Texture (Always same)
     const manilaWallTexture = useMemo(() => {
         const t = new TextureLoader().load(manilaWallUrl);
         t.magFilter = NearestFilter;
@@ -186,9 +204,44 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
             const posZ = y * CELL_SIZE - offset;
 
             if (map[y][x] === 1) {
+                // Special: Portal Door (Attached to existing wall)
+                if (x === 8 && y === 8) {
+                    let doorPos: [number, number, number] | null = null;
+                    let doorRot: [number, number, number] = [0, 0, 0];
+                    const offset = CellHalf + 0.05; // 2.55
+
+                    // Check 4 directions for an empty space to face
+                    // North (y-1)
+                    if (y > 0 && map[y - 1][x] === 0) {
+                        doorPos = [posX, 0, posZ - offset];
+                        doorRot = [0, Math.PI, 0]; // Face North
+                    }
+                    // South (y+1)
+                    else if (y < map.length - 1 && map[y + 1][x] === 0) {
+                        doorPos = [posX, 0, posZ + offset];
+                        doorRot = [0, 0, 0]; // Face South (Default Z+)
+                    }
+                    // West (x-1)
+                    else if (x > 0 && map[y][x - 1] === 0) {
+                        doorPos = [posX - offset, 0, posZ];
+                        doorRot = [0, -Math.PI / 2, 0]; // Face West
+                    }
+                    // East (x+1)
+                    else if (x < map[0].length - 1 && map[y][x + 1] === 0) {
+                        doorPos = [posX + offset, 0, posZ];
+                        doorRot = [0, Math.PI / 2, 0]; // Face East
+                    }
+
+                    if (doorPos) {
+                        looseElements.push(
+                            <PortalDoor key={`portal-${x}-${y}`} position={doorPos} rotation={doorRot} />
+                        );
+                    }
+                }
+
                 // Wall Logic
                 let isManilaWall = false;
-                if (manilaPos) {
+                if (currentLevel !== 'LEVEL_0_2' && manilaPos) {
                     const [mx, my] = manilaPos;
                     // Check adjacency (3x3 grid around manila center)
                     if (Math.abs(x - mx) <= 1 && Math.abs(y - my) <= 1) {
@@ -218,7 +271,7 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
                 }
 
                 // 2. Manila Room Center
-                if (manilaPos && x === manilaPos[0] && y === manilaPos[1]) {
+                if (currentLevel !== 'LEVEL_0_2' && manilaPos && x === manilaPos[0] && y === manilaPos[1]) {
                     // Overlay Wood Floor
                     manilaRoomFurniture.push(
                         <TexturedPlane
@@ -250,7 +303,52 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
                         />
                     );
                 } else {
-                    // 3. Spawning ShadowMan
+                    // 3. Level 0.2 Lore Notes
+                    if (currentLevel === 'LEVEL_0_2') {
+                        // Note 1: Budget Cut Notice
+                        if (x === 2 && y === 2) {
+                            looseElements.push(
+                                <Table key={`table1-${x}-${y}`} position={[posX, 0, posZ]} />
+                            );
+                            looseElements.push(
+                                <Note
+                                    key={`lore1-${x}-${y}`}
+                                    position={[posX, 1.05, posZ]}
+                                    title="NOTICE: RENOVATION PAUSED"
+                                    body={[
+                                        "TO ALL CONTRACTORS:",
+                                        "Due to unforeseen budget constraints, all renovation work on Sector 0.2 is suspended indefinitely.",
+                                        "Pack up your tools. Do not leave any debris.",
+                                        "Regarding the 'noise' complaints: Management assures you it is merely the HVAC settling.",
+                                        "- B.R.C. Management"
+                                    ]}
+                                />
+                            );
+                        }
+
+                        // Note 2: Worker's Complaint
+                        if (x === 6 && y === 12) {
+                            looseElements.push(
+                                <Table key={`table2-${x}-${y}`} position={[posX, 0, posZ]} />
+                            );
+                            looseElements.push(
+                                <Note
+                                    key={`lore2-${x}-${y}`}
+                                    position={[posX, 1.05, posZ]}
+                                    title="Scrawled Note"
+                                    body={[
+                                        "They cut the funding? Seriously?",
+                                        "We haven't even finished the drywall.",
+                                        "And that smell... wet carpet and ozone. It's getting stronger.",
+                                        "I saw something moving in the unfinished section. It wasn't a rat.",
+                                        "I'm leaving. They can keep their money."
+                                    ]}
+                                />
+                            );
+                        }
+                    }
+
+                    // 4. Spawning ShadowMan
                     if (Math.random() < 0.008 && (x !== 1 || y !== 1)) {
                         entities.push(
                             <ShadowMan
@@ -286,15 +384,18 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
             });
             manilaWallRef.current.instanceMatrix.needsUpdate = true;
         }
-    }, [standardWallData.length, manilaWallData.length]);
+    }, [standardWallData.length, manilaWallData.length, currentLevel]);
 
     return (
         <group>
+            {/* Level 0.2 Safety Light */}
+            {currentLevel === 'LEVEL_0_2' && <ambientLight intensity={1.0} />}
+
             {/* Physics + Visual Floor */}
             <TexturedPlane
                 position={[0, 0, 0]}
                 args={[floorSize * 1.5, floorSize * 1.5]}
-                textureUrl={carpetUrl}
+                textureUrl={activeFloorUrl}
                 repeats={floorSize / 5}
             />
 
@@ -313,7 +414,10 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
                 castShadow
             >
                 <boxGeometry args={[CELL_SIZE, WALL_HEIGHT, CELL_SIZE]} />
-                <meshStandardMaterial map={wallpaperTexture} color="#ccc" />
+                <meshStandardMaterial
+                    map={wallTexture}
+                    color={currentLevel === 'LEVEL_0_2' ? '#ffffff' : '#ccc'}
+                />
             </instancedMesh>
 
             {/* Instanced Manila Walls */}

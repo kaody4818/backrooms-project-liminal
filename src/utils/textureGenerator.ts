@@ -175,3 +175,71 @@ export const createCeilingTileTexture = () => {
 
     return canvas.toDataURL();
 };
+
+export const createWhitePaintTexture = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    // Base White/Grey
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Subtle Paint Roller Texture
+    for (let i = 0; i < 80000; i++) {
+        const shade = Math.random() * 20 + 235; // 235-255
+        ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+    }
+
+    // Occasional scuff (Rare, since it's "Remodeled")
+    for (let i = 0; i < 50; i++) {
+        ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.05})`;
+        const w = 2 + Math.random() * 10;
+        const h = 2 + Math.random() * 10;
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, w, h);
+    }
+
+    return canvas.toDataURL();
+};
+
+export const createRedCarpetTexture = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    // Base Deep Red
+    ctx.fillStyle = '#660000';
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Carpet Fiber Noise
+    for (let i = 0; i < 60000; i++) {
+        const val = Math.random() * 50; // Variation
+        // Mix of lighter red and darker red
+        const r = 102 + val; // 102-152
+        ctx.fillStyle = `rgba(${r}, 0, 0, 0.3)`;
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+    }
+
+    // Subtle darker patches (foot traffic?)
+    for (let i = 0; i < 20; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const radius = 30 + Math.random() * 50;
+
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    return canvas.toDataURL();
+};
