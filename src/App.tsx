@@ -12,12 +12,14 @@ import { Level } from './components/world/Level';
 import { LightingController } from './components/world/LightingController';
 import { useGameStore } from './store/gameStore';
 import { generateMaze, CELL_SIZE } from './utils/mapGenerator';
+import { HallucinationManager } from './components/logic/HallucinationManager';
 import { MainMenu } from './components/ui/MainMenu';
 import { GameOver } from './components/ui/GameOver';
+import { PauseMenu } from './components/ui/PauseMenu';
 
 
 function App() {
-  const { isMenuOpen, isGameOver, hasWon, interactionText, isReadingNote, setIsReadingNote } = useGameStore();
+  const { isMenuOpen, isGameOver, hasWon, interactionText, isReadingNote, setIsReadingNote, isPaused } = useGameStore();
 
   // Generate map once
   const { map, startPos, exitPos, manilaPos } = useMemo(() => {
@@ -50,6 +52,8 @@ function App() {
       {isMenuOpen && <MainMenu />}
 
       {isGameOver && <GameOver hasWon={hasWon} />}
+
+      {isPaused && <PauseMenu />}
 
       {/* Interaction Prompt UI */}
       {interactionText && !isMenuOpen && !isGameOver && !isReadingNote && (
@@ -94,6 +98,8 @@ function App() {
           <Player position={startPos} exitPos={exitPos} />
           <Level map={map} manilaPos={manilaPos} />
         </Physics>
+
+        <HallucinationManager />
 
         <InteractionManager />
 

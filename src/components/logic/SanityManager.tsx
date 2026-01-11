@@ -12,9 +12,12 @@ export const SanityManager = () => {
     }, [sanity]);
 
     useEffect(() => {
-        if (isMenuOpen || isGameOver) return;
+        if (isMenuOpen || isGameOver || useGameStore.getState().isPaused) return;
 
         const interval = setInterval(() => {
+            // Re-check inside interval just in case
+            if (useGameStore.getState().isPaused) return;
+
             setSanity((prev) => {
                 // Decay rate: 100 sanity / 300 seconds (5 minutes) = ~0.33 per second
                 // Let's make it slightly faster for testing: 1 per second

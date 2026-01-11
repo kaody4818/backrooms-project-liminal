@@ -5,12 +5,13 @@ import { useGameStore } from '../../store/gameStore';
 
 export const ShadowMan = ({ position }: { position: [number, number, number] }) => {
     const sanity = useGameStore((state) => state.sanity);
+    const isPaused = useGameStore((state) => state.isPaused);
     const { camera } = useThree();
     const ref = useRef<any>(null);
     const [isVisible, setIsVisible] = useState(true);
 
     useFrame(() => {
-        if (!ref.current || !isVisible) return;
+        if (!ref.current || !isVisible || isPaused) return;
 
         // Only appear if sanity is low (< 50)
         if (sanity > 50) {
@@ -18,13 +19,15 @@ export const ShadowMan = ({ position }: { position: [number, number, number] }) 
             return;
         }
 
-        const dist = ref.current.position.distanceTo(camera.position);
 
-        // If too close, KILL
+
+        // If too close, KILL (Disabled for now)
+        /*
         if (dist < 1.5) {
             useGameStore.getState().setGameOver(true);
             return;
         }
+        */
 
         // Make billboard always face camera
         ref.current.lookAt(camera.position.x, 1.6, camera.position.z);

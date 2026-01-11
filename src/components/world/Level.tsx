@@ -213,7 +213,7 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
                 // 1. Lights (Odd grid spots for paths)
                 if (x % 4 === 1 && y % 4 === 1) {
                     looseElements.push(
-                        <FluorescentLight key={`light-${x}-${y}`} position={[posX, WALL_HEIGHT - 0.26, posZ]} />
+                        <FluorescentLight key={`light-${x}-${y}`} position={[posX, WALL_HEIGHT - 0.05, posZ]} />
                     );
                 }
 

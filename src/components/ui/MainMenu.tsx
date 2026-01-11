@@ -6,7 +6,11 @@ export const MainMenu = () => {
     return (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black text-white overflow-hidden">
             {/* VHS Scanlines Overlay */}
-            <div className="absolute inset-0 bg-[url('https://media.giphy.com/media/l41YcWn4xJ6N8t7ZS/giphy.gif')] opacity-10 pointer-events-none mix-blend-overlay bg-cover"></div>
+            {/* VHS Scanlines Overlay */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-overlay" style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E")`,
+                filter: 'contrast(150%) brightness(100%)'
+            }}></div>
 
             {/* Scanline Animation using CSS (using a simple repeating gradient) */}
             <div className="absolute inset-0 pointer-events-none" style={{
