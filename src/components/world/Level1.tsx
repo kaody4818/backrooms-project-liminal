@@ -1,7 +1,7 @@
 import { usePlane, useBox } from '@react-three/cannon';
 import { useMemo } from 'react';
 import { DoubleSide, RepeatWrapping, NearestFilter, TextureLoader } from 'three';
-import { createConcreteTexture, createWoodBoxTexture } from '../../utils/textureGenerator';
+
 import { CELL_SIZE, WALL_HEIGHT } from '../../utils/mapGenerator';
 import { ConcretePillar } from './ConcretePillar';
 import { Crate } from '../entities/Crate';
@@ -23,21 +23,16 @@ export const Level1 = ({ map, pillarPositions, cratePositions }: Level1Props) =>
 
     // Textures - Load Sync to avoid Suspense Freeze
     const concreteTexture = useMemo(() => {
-        // Use Real Texture Generation now that optimization is in place (shared texture)
-        const url = createConcreteTexture();
+        const url = '/textures/concrete_floor.png';
         const tex = new TextureLoader().load(url);
         tex.wrapS = RepeatWrapping;
         tex.wrapT = RepeatWrapping;
         tex.repeat.set(width / 2, height / 2);
-        tex.magFilter = NearestFilter;
-        tex.minFilter = NearestFilter;
         return tex;
     }, [width, height]);
 
     const woodBoxTexture = useMemo(() => {
-        const url = createWoodBoxTexture();
-        const tex = new TextureLoader().load(url);
-        return tex;
+        return new TextureLoader().load('/textures/wood_crate.png');
     }, []);
 
     // Lights

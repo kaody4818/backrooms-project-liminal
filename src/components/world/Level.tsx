@@ -2,15 +2,7 @@ import { usePlane, useBox } from '@react-three/cannon';
 import { useMemo, useRef, useLayoutEffect } from 'react';
 import { NearestFilter, RepeatWrapping, TextureLoader, Object3D, InstancedMesh } from 'three';
 import { CELL_SIZE, WALL_HEIGHT } from '../../utils/mapGenerator';
-import {
-    createCarpetTexture,
-    createWallpaperTexture,
-    createManilaWallTexture,
-    createWoodFloorTexture,
-    createCeilingTileTexture,
-    createWhitePaintTexture,
-    createRedCarpetTexture
-} from '../../utils/textureGenerator';
+
 import { ShadowMan } from '../entities/ShadowMan';
 import { Note } from './Note';
 import { FluorescentLight } from './FluorescentLight';
@@ -148,18 +140,14 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
     const floorSize = map.length * CELL_SIZE;
 
     // Generate Textures ONCE
-    const {
-        wallpaperUrl, carpetUrl, manilaWallUrl, woodFloorUrl, ceilingUrl,
-        whitePaintUrl, redCarpetUrl
-    } = useMemo(() => ({
-        wallpaperUrl: createWallpaperTexture(),
-        carpetUrl: createCarpetTexture(),
-        manilaWallUrl: createManilaWallTexture(),
-        woodFloorUrl: createWoodFloorTexture(),
-        ceilingUrl: createCeilingTileTexture(),
-        whitePaintUrl: createWhitePaintTexture(),
-        redCarpetUrl: createRedCarpetTexture(),
-    }), []);
+    // Static Texture Assets
+    const wallpaperUrl = '/textures/wallpaper.png';
+    const carpetUrl = '/textures/carpet.png';
+    const manilaWallUrl = '/textures/manila_wall.png';
+    const woodFloorUrl = '/textures/wood_floor.png';
+    const ceilingUrl = '/textures/ceiling_tile.png';
+    const whitePaintUrl = '/textures/white_paint.png';
+    const redCarpetUrl = '/textures/red_carpet.png';
 
     // Select Active Textures based on Level
     const activeWallUrl = currentLevel === 'LEVEL_0_2' ? whitePaintUrl : wallpaperUrl;
@@ -170,7 +158,11 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
     // Wall Material Texture
     const wallTexture = useMemo(() => {
         const t = new TextureLoader().load(activeWallUrl);
-        t.magFilter = NearestFilter;
+        // t.magFilter = NearestFilter; // Removing NearestFilter for high-res assets to avoid aliasing artifacts
+        t.wrapS = RepeatWrapping;
+        t.wrapT = RepeatWrapping;
+        // Tile the texture: 1 repeat per 2 meters approx
+        t.repeat.set(CELL_SIZE / 2, WALL_HEIGHT / 2);
         return t;
     }, [activeWallUrl]);
 
