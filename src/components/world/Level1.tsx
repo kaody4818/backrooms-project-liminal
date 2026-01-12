@@ -1,17 +1,17 @@
-import { usePlane, useBox } from '@react-three/cannon';
-import { useMemo } from 'react';
+import { useBox, usePlane } from '@react-three/cannon';
+import { useMemo, type ReactElement } from 'react';
 import { DoubleSide, RepeatWrapping, TextureLoader } from 'three';
 
-import { CELL_SIZE } from '../../utils/mapGenerator';
-import { ConcretePillar } from './ConcretePillar';
+import { CELL_SIZE, SECTOR_AQUILA, SECTOR_CORRIDOR, SECTOR_GILD } from '../../utils/mapGenerator';
 import { Crate } from '../entities/Crate';
+import { ConcretePillar } from './ConcretePillar';
 import { FluorescentLight } from './FluorescentLight';
 
 interface Level1Props {
     map: number[][]; // 0=Floor, 1=Wall
     pillarPositions: [number, number][]; // Grid coordinates
     cratePositions: [number, number][]; // Grid coordinates
-    sectorMap?: number[][];
+    sectorMap: number[][];
 }
 
 export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Level1Props) => {
@@ -22,19 +22,126 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
     const worldWidth = width * CELL_SIZE;
     const worldHeight = height * CELL_SIZE;
 
-    // Textures - Load Sync to avoid Suspense Freeze
-    const concreteTexture = useMemo(() => {
-        const url = '/textures/concrete_floor.png';
-        const tex = new TextureLoader().load(url);
-        tex.wrapS = RepeatWrapping;
-        tex.wrapT = RepeatWrapping;
-        tex.repeat.set(width / 2, height / 2);
-        return tex;
-    }, [width, height]);
+    // --- Texture Loading ---
+    const textures = useMemo(() => {
+        const loader = new TextureLoader();
 
-    const woodBoxTexture = useMemo(() => {
-        return new TextureLoader().load('/textures/wood_crate.png');
+        const load = (url: string) => {
+            const tex = loader.load(url);
+            tex.wrapS = RepeatWrapping;
+            tex.wrapT = RepeatWrapping;
+            return tex;
+        };
+
+        return {
+            aquilaWall: load('/textures/l1_aquila_wall.png'),
+            gildWall: load('/textures/l1_gild_wall.png'),
+            gildFloor: load('/textures/l1_gild_floor.png'),
+            ceilingPipes: load('/textures/l1_ceiling_pipes.png'),
+            corridorWall: load('/textures/l1_corridor_wall.png'),
+            concreteFloor: load('/textures/concrete_floor.png'), // Aquila/Corridor Floor
+            woodBox: load('/textures/wood_crate.png')
+        };
     }, []);
+
+    // --- Physics ---
+
+    // Floor Physics (Single Plane for simplicity/performance)
+    const [floorRef] = usePlane(() => ({
+        rotation: [-Math.PI / 2, 0, 0],
+        position: [0, 0, 0],
+        type: 'Static',
+    }));
+
+    // Ceiling Physics
+    const WAREHOUSE_HEIGHT = 6;
+    const [ceilingRef] = usePlane(() => ({
+        rotation: [Math.PI / 2, 0, 0],
+        position: [0, WAREHOUSE_HEIGHT, 0],
+        type: 'Static',
+    }));
+
+
+    // --- Rendering Helpers ---
+    // We render individual tiles based on sector to apply correct textures.
+    // This loops over the map and generates mesh elements.
+
+    const renderLevel = useMemo(() => {
+        const elements: ReactElement[] = [];
+
+        map.forEach((row, z) => {
+            row.forEach((cell, x) => {
+                const sector = sectorMap[z][x];
+
+                // Position logic
+                const xPos = x * CELL_SIZE - worldWidth / 2 + CELL_SIZE / 2;
+                const zPos = z * CELL_SIZE - worldHeight / 2 + CELL_SIZE / 2;
+
+                // --- 1. WALLS ---
+                if (cell === 1) {
+                    // Determine wall texture based on neighbor sector (heuristic)
+                    // If no sector neighbor (outer void), default to Aquila or Corridor
+
+                    let wallTex = textures.corridorWall; // Default
+                    let neighborSector = SECTOR_CORRIDOR;
+
+                    // Check neighbors to decide style
+                    if (x > 0 && sectorMap[z][x - 1] !== 0) neighborSector = sectorMap[z][x - 1];
+                    else if (x < width - 1 && sectorMap[z][x + 1] !== 0) neighborSector = sectorMap[z][x + 1];
+                    else if (z > 0 && sectorMap[z - 1][x] !== 0) neighborSector = sectorMap[z - 1][x];
+                    else if (z < height - 1 && sectorMap[z + 1][x] !== 0) neighborSector = sectorMap[z + 1][x];
+
+                    if (neighborSector === SECTOR_AQUILA) wallTex = textures.aquilaWall;
+                    else if (neighborSector === SECTOR_GILD) wallTex = textures.gildWall;
+
+                    elements.push(
+                        <WallBlock
+                            key={`wall-${x}-${z}`}
+                            position={[xPos, WAREHOUSE_HEIGHT / 2, zPos]}
+                            height={WAREHOUSE_HEIGHT}
+                            texture={wallTex}
+                        />
+                    );
+                }
+                // --- 2. FLOORS & CEILINGS (for empty space 0 usually) ---
+                // Even walls need floors/ceilings above/below them technically, but we only verify walkables (0)
+                // Actually, if we use a giant plane for physics, visuals should be tiled on top.
+                // We'll render visual floors ONLY where map index is 0 or 1?
+                // Visual floor should cover EVERYTHING to avoid z-fighting with the physics plane if it has a material?
+                // The physics plane (floorRef) below uses the material.
+                // We should make the physics plane invisible and render tiles on top.
+
+                // Let's render Floor/Ceiling Tiles for every cell (0 or 1) to cover the map.
+
+                // Floor Texture
+                let floorTex = textures.concreteFloor;
+                if (sector === SECTOR_GILD) floorTex = textures.gildFloor;
+
+                // Ceiling Texture
+                let ceilingTex = textures.concreteFloor; // Default Grey
+                if (sector === SECTOR_GILD) ceilingTex = textures.ceilingPipes;
+
+                // Floor Tile
+                elements.push(
+                    <mesh key={`fl-${x}-${z}`} position={[xPos, 0.01, zPos]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+                        <planeGeometry args={[CELL_SIZE, CELL_SIZE]} />
+                        <meshStandardMaterial map={floorTex} />
+                    </mesh>
+                );
+
+                // Ceiling Tile
+                elements.push(
+                    <mesh key={`cl-${x}-${z}`} position={[xPos, WAREHOUSE_HEIGHT - 0.01, zPos]} rotation={[Math.PI / 2, 0, 0]}>
+                        <planeGeometry args={[CELL_SIZE, CELL_SIZE]} />
+                        <meshStandardMaterial map={ceilingTex} side={DoubleSide} />
+                    </mesh>
+                );
+            });
+        });
+
+        return elements;
+    }, [map, sectorMap, textures, width, height, worldWidth, worldHeight]);
+
 
     // Lights
     const lights = useMemo(() => {
@@ -55,80 +162,19 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
         return arr;
     }, [height, width, worldWidth, worldHeight]);
 
-    // Floor Physics
-    const [floorRef] = usePlane(() => ({
-        rotation: [-Math.PI / 2, 0, 0],
-        position: [0, 0, 0],
-        type: 'Static',
-    }));
-
-    // Ceiling Physics
-    const WAREHOUSE_HEIGHT = 6;
-    const [ceilingRef] = usePlane(() => ({
-        rotation: [Math.PI / 2, 0, 0],
-        position: [0, WAREHOUSE_HEIGHT, 0],
-        type: 'Static',
-    }));
-
 
     return (
         <group>
-            {/* Floor */}
-            <mesh ref={floorRef} receiveShadow>
+            {/* Invisible Physics Planes */}
+            <mesh ref={floorRef} visible={false}>
                 <planeGeometry args={[worldWidth, worldHeight]} />
-                <meshStandardMaterial map={concreteTexture} roughness={0.9} color="#555555" />
+            </mesh>
+            <mesh ref={ceilingRef} visible={false}>
+                <planeGeometry args={[worldWidth, worldHeight]} />
             </mesh>
 
-            {/* Ceiling */}
-            <mesh ref={ceilingRef}>
-                <planeGeometry args={[worldWidth, worldHeight]} />
-                <meshStandardMaterial map={concreteTexture} color="#333333" side={DoubleSide} />
-            </mesh>
-
-            {/* Walls */}
-            {map.map((row, z) =>
-                row.map((cell, x) => {
-                    if (cell === 1) {
-                        const xPos = x * CELL_SIZE - worldWidth / 2 + CELL_SIZE / 2;
-                        const zPos = z * CELL_SIZE - worldHeight / 2 + CELL_SIZE / 2;
-
-                        // Determine Sector Style
-                        // sectorDiff removed as it was unused.
-
-                        // Heuristic: Check neighbors. If neighbor is AQUILA, I am AQUILA wall.
-                        // Walls in mapGenerator might still be 0 (None) in sectorMap if they weren't carved.
-                        // We need to look at adjacent floors to decide wall color?
-                        // Or imply that mapGenerator sets sectorMap for walls too?
-                        // Currently generateLevel1 only sets sectorMap for FLOORS (0). Walls (1) remain 0 (None).
-
-                        // Heuristic: Check neighbors. If neighbor is AQUILA, I am AQUILA wall.
-                        let wallColor = "#666666"; // Default Grey
-                        let neighborSector = 0;
-                        if (sectorMap) {
-                            // Check orthogonal neighbors
-                            if (x > 0 && sectorMap[z][x - 1] !== 0) neighborSector = sectorMap[z][x - 1];
-                            else if (x < width - 1 && sectorMap[z][x + 1] !== 0) neighborSector = sectorMap[z][x + 1];
-                            else if (z > 0 && sectorMap[z - 1][x] !== 0) neighborSector = sectorMap[z - 1][x];
-                            else if (z < height - 1 && sectorMap[z + 1][x] !== 0) neighborSector = sectorMap[z + 1][x];
-
-                            if (neighborSector === 1) wallColor = "#555555"; // Aquila (Generic Concrete)
-                            if (neighborSector === 2) wallColor = "#8B4513"; // Gild (Brown/Wood/Gold)
-                            if (neighborSector === 3) wallColor = "#333333"; // Corridor (Dark)
-                        }
-
-                        return (
-                            <WallBlock
-                                key={`wall-${x}-${z}`}
-                                position={[xPos, WAREHOUSE_HEIGHT / 2, zPos]}
-                                height={WAREHOUSE_HEIGHT}
-                                texture={concreteTexture}
-                                color={wallColor}
-                            />
-                        );
-                    }
-                    return null;
-                })
-            )}
+            {/* Rendered World (Walls, Floor Tiles, Ceiling Tiles) */}
+            {renderLevel}
 
             {/* Pillars */}
             {pillarPositions.map(([px, pz], i) => {
@@ -139,7 +185,7 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
                         key={`pillar-${i}`}
                         position={[xPos, WAREHOUSE_HEIGHT / 2, zPos]}
                         height={WAREHOUSE_HEIGHT}
-                        texture={concreteTexture}
+                        texture={textures.aquilaWall} // Use Aquila texture for pillars
                     />
                 );
             })}
@@ -152,7 +198,7 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
                     <Crate
                         key={`crate-${i}`}
                         position={[xPos, 0.5, zPos]}
-                        texture={woodBoxTexture}
+                        texture={textures.woodBox}
                         isStatic={true}
                     />
                 );
@@ -161,15 +207,15 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
             {/* Ceiling Lights */}
             {lights}
 
-            {/* Fog for Atmosphere (Dark Grey/Black for Level 1) */}
+            {/* Fog for Atmosphere */}
             <fog attach="fog" args={['#111111', 5, 60]} />
             <color attach="background" args={['#111111']} />
         </group>
     );
 };
 
-// Helper Wall Component
-const WallBlock = ({ position, height, texture, color = "#666666" }: { position: [number, number, number], height: number, texture: any, color?: string }) => {
+// Helper Wall Component (Updated props)
+const WallBlock = ({ position, height, texture }: { position: [number, number, number], height: number, texture: any }) => {
     const [ref] = useBox(() => ({
         type: 'Static',
         position,
@@ -179,7 +225,7 @@ const WallBlock = ({ position, height, texture, color = "#666666" }: { position:
     return (
         <mesh ref={ref} receiveShadow>
             <boxGeometry args={[CELL_SIZE, height, CELL_SIZE]} />
-            <meshStandardMaterial map={texture} color={color} />
+            <meshStandardMaterial map={texture} />
         </mesh>
     );
 };
