@@ -115,7 +115,7 @@ function App() {
   const { isMenuOpen, isGameOver, hasWon, interactionText, readingNote, setReadingNote, isPaused, currentLevel } = useGameStore();
 
   // Generate Level 0 Map
-  const { map: mapL0, startPos: startPosL0, exitPos: exitPosL0, manilaPos } = useMemo(() => {
+  const { map: mapL0, startPos: startPosL0, exitPos: exitPosL0, manilaPos, remodelingDoorConfig } = useMemo(() => {
     const size = 21;
     const { map: generatedMap, manilaPos } = generateMaze(size, size);
 
@@ -133,9 +133,19 @@ function App() {
     const mx = manilaPos[0] * CELL_SIZE - offset;
     const mz = manilaPos[1] * CELL_SIZE - offset;
 
+    // Remodeling Door Position:
+    // Moved to (8,9) as requested.
+    // North Wall of (8,9).
+    const dX = 8 * CELL_SIZE - offset;
+    const dZ = 9 * CELL_SIZE - offset;
+
     return {
       map: generatedMap,
       manilaPos,
+      remodelingDoorConfig: {
+        position: [dX, 1.6, dZ - 2.45] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number]
+      },
       startPos: [x, 1.5, z] as [number, number, number],
       exitPos: [mx, 5, mz] as [number, number, number]
     };
@@ -243,7 +253,7 @@ function App() {
           <Player position={activeStartPos} exitPos={currentLevel === 'LEVEL_0' ? exitPosL0 : null} />
 
           {(currentLevel === 'LEVEL_0' || currentLevel === 'LEVEL_0_2') && (
-            <Level map={mapL0} manilaPos={manilaPos} />
+            <Level map={mapL0} manilaPos={manilaPos} remodelingDoorConfig={remodelingDoorConfig} />
           )}
 
           {/* Render Level 1 */}

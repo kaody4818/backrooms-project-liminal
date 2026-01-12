@@ -8,6 +8,7 @@ import { Note } from './Note';
 import { FluorescentLight } from './FluorescentLight';
 import { useGameStore } from '../../store/gameStore';
 import { GlitchWall } from '../entities/PortalDoor';
+import { RemodelingDoor } from '../entities/RemodelingDoor';
 
 // Helper: Textured Plane (Floor)
 function TexturedPlane({ args, textureUrl, repeats = 1, ...props }: any) {
@@ -132,7 +133,7 @@ function Table({ position }: { position: [number, number, number] }) {
 }
 
 // Main Component
-export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number, number] }) => {
+export const Level = ({ map, manilaPos, remodelingDoorConfig }: { map: number[][], manilaPos?: [number, number], remodelingDoorConfig?: { position: [number, number, number], rotation: [number, number, number] } }) => {
     const { currentLevel, hasReadManilaNote } = useGameStore();
     const CellHalf = CELL_SIZE / 2;
 
@@ -448,6 +449,11 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
             {looseElements}
             {entities}
             {manilaRoomFurniture}
+
+            {/* Remodeling Door (Level 0 -> Level 0.2) */}
+            {remodelingDoorConfig && currentLevel === 'LEVEL_0' && (
+                <RemodelingDoor position={remodelingDoorConfig.position} rotation={remodelingDoorConfig.rotation} />
+            )}
 
 
         </group>

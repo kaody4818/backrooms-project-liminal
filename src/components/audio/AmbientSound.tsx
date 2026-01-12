@@ -5,11 +5,9 @@ export const AmbientSound = () => {
     const { isMenuOpen, ambientVolumeScale, currentLevel } = useGameStore();
     const audioContext = useRef<AudioContext | null>(null);
     const gainNode = useRef<GainNode | null>(null);
-    const tinnitusGainNode = useRef<GainNode | null>(null);
 
     // Track oscillators to stop them on unmount
     const ambientOscillator = useRef<OscillatorNode | null>(null);
-    const tinnitusOscillator = useRef<OscillatorNode | null>(null);
 
     // Initialize audio context and nodes
     useEffect(() => {
@@ -28,38 +26,22 @@ export const AmbientSound = () => {
             gain.gain.value = 0; // Start silent
             gainNode.current = gain;
 
-            // Tinnitus Ring (High Pitch for Hallucinations)
-            const tOsc = ctx.createOscillator();
-            tOsc.type = 'sine';
-            tOsc.frequency.value = 7500; // Ear ringing freq
-            tinnitusOscillator.current = tOsc;
-
-            const tGain = ctx.createGain();
-            tGain.gain.value = 0.02; // Base volume (will be multiplied by ambientVolumeScale)
-            tinnitusGainNode.current = tGain;
-
             // Connect nodes
             osc.connect(gain);
-            tOsc.connect(tGain);
-            tGain.connect(gain); // Tinnitus connects to the main gain node
             gain.connect(ctx.destination);
 
             // Start oscillators
             osc.start();
-            tOsc.start();
         }
 
         // Cleanup function
         return () => {
             if (audioContext.current) {
                 ambientOscillator.current?.stop();
-                tinnitusOscillator.current?.stop();
                 audioContext.current.close();
                 audioContext.current = null;
                 gainNode.current = null;
-                tinnitusGainNode.current = null;
                 ambientOscillator.current = null;
-                tinnitusOscillator.current = null;
             }
         };
     }, []); // Run once on mount
