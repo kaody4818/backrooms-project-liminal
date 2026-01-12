@@ -450,9 +450,13 @@ export const Level = ({ map, manilaPos, remodelingDoorConfig }: { map: number[][
             {entities}
             {manilaRoomFurniture}
 
-            {/* Remodeling Door (Level 0 -> Level 0.2) */}
-            {remodelingDoorConfig && currentLevel === 'LEVEL_0' && (
-                <RemodelingDoor position={remodelingDoorConfig.position} rotation={remodelingDoorConfig.rotation} />
+            {/* Remodeling Door (Level 0 <-> Level 0.2) */}
+            {remodelingDoorConfig && (currentLevel === 'LEVEL_0' || currentLevel === 'LEVEL_0_2') && (
+                <RemodelingDoor
+                    position={remodelingDoorConfig.position}
+                    rotation={remodelingDoorConfig.rotation}
+                    targetLevel={currentLevel === 'LEVEL_0' ? 'LEVEL_0_2' : 'LEVEL_0'}
+                />
             )}
 
 

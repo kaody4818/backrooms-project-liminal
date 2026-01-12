@@ -19,9 +19,8 @@ export const SanityManager = () => {
             if (useGameStore.getState().isPaused) return;
 
             setSanity((prev) => {
-                // Decay rate: 100 sanity / 300 seconds (5 minutes) = ~0.33 per second
-                // Let's make it slightly faster for testing: 1 per second
-                const newSanity = Math.max(0, prev - 0.5);
+                // Decay rate: 100 sanity / 1000 seconds = 0.1 per second (Slower decay)
+                const newSanity = Math.max(0, prev - 0.1);
 
                 // Threshold checks (Logic only, visual effects will react to store changes)
                 if (newSanity < 80 && prev >= 80) {

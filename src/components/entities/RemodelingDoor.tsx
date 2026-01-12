@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { useBox } from '@react-three/cannon';
 import { useGameStore } from '../../store/gameStore';
 
-export const RemodelingDoor = ({ position, rotation }: { position: [number, number, number], rotation: [number, number, number] }) => {
+export const RemodelingDoor = ({ position, rotation, targetLevel }: { position: [number, number, number], rotation: [number, number, number], targetLevel: 'LEVEL_0' | 'LEVEL_0_2' | 'LEVEL_1' }) => {
     const setLevel = useGameStore((state) => state.setLevel);
     const setInteractionText = useGameStore((state) => state.setInteractionText);
     const meshRef = useRef<any>(null);
@@ -17,8 +17,8 @@ export const RemodelingDoor = ({ position, rotation }: { position: [number, numb
 
     const handleInteract = () => {
         setInteractionText(null);
-        console.log("Entering Level 0.2...");
-        setLevel('LEVEL_0_2');
+        console.log(`Transitioning to ${targetLevel}...`);
+        setLevel(targetLevel);
     };
 
     const userData = {
