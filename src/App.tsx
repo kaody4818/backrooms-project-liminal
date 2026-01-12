@@ -1,4 +1,4 @@
-import { Physics, usePlane, Debug } from '@react-three/cannon'; // Import Debug
+import { Physics, usePlane } from '@react-three/cannon';
 import { Sky } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { useMemo, useState, useRef, useEffect } from 'react';
@@ -290,26 +290,24 @@ function App() {
         <LightingController />
 
         <Physics gravity={[0, -9.8, 0]} defaultContactMaterial={{ friction: 0, restitution: 0 }}>
-          <Debug color="black" scale={1.1}>
-            <SafetyFloor />
-            <Player position={activeStartPos} exitPos={currentLevel === 'LEVEL_0' ? exitPosL0 : null} />
+          <SafetyFloor />
+          <Player position={activeStartPos} exitPos={currentLevel === 'LEVEL_0' ? exitPosL0 : null} />
 
-            {(currentLevel === 'LEVEL_0' || currentLevel === 'LEVEL_0_2') && (
-              <Level map={mapL0} manilaPos={manilaPos} remodelingDoorConfig={remodelingDoorConfig} />
-            )}
+          {(currentLevel === 'LEVEL_0' || currentLevel === 'LEVEL_0_2') && (
+            <Level map={mapL0} manilaPos={manilaPos} remodelingDoorConfig={remodelingDoorConfig} />
+          )}
 
-            {/* Render Level 1 */}
-            {currentLevel === 'LEVEL_1' && (
-              <Level1
-                map={mapL1}
-                pillarPositions={pillarPositionsL1}
-                cratePositions={cratePositionsL1}
-                sectorMap={sectorMapL1}
-              />
-            )}
+          {/* Render Level 1 */}
+          {currentLevel === 'LEVEL_1' && (
+            <Level1
+              map={mapL1}
+              pillarPositions={pillarPositionsL1}
+              cratePositions={cratePositionsL1}
+              sectorMap={sectorMapL1}
+            />
+          )}
 
-            <HazardManager />
-          </Debug>
+          <HazardManager />
         </Physics>
 
         <HallucinationManager />
