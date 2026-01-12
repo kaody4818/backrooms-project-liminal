@@ -1,8 +1,8 @@
 import { usePlane, useBox } from '@react-three/cannon';
 import { useMemo } from 'react';
-import { DoubleSide, RepeatWrapping, NearestFilter, TextureLoader } from 'three';
+import { DoubleSide, RepeatWrapping, TextureLoader } from 'three';
 
-import { CELL_SIZE, WALL_HEIGHT } from '../../utils/mapGenerator';
+import { CELL_SIZE } from '../../utils/mapGenerator';
 import { ConcretePillar } from './ConcretePillar';
 import { Crate } from '../entities/Crate';
 import { FluorescentLight } from './FluorescentLight';
@@ -11,9 +11,10 @@ interface Level1Props {
     map: number[][]; // 0=Floor, 1=Wall
     pillarPositions: [number, number][]; // Grid coordinates
     cratePositions: [number, number][]; // Grid coordinates
+    sectorMap?: number[][];
 }
 
-export const Level1 = ({ map, pillarPositions, cratePositions }: Level1Props) => {
+export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Level1Props) => {
     const height = map.length;
     const width = map[0].length;
 
@@ -90,12 +91,38 @@ export const Level1 = ({ map, pillarPositions, cratePositions }: Level1Props) =>
                     if (cell === 1) {
                         const xPos = x * CELL_SIZE - worldWidth / 2 + CELL_SIZE / 2;
                         const zPos = z * CELL_SIZE - worldHeight / 2 + CELL_SIZE / 2;
+
+                        // Determine Sector Style
+                        // sectorDiff removed as it was unused.
+
+                        // Heuristic: Check neighbors. If neighbor is AQUILA, I am AQUILA wall.
+                        // Walls in mapGenerator might still be 0 (None) in sectorMap if they weren't carved.
+                        // We need to look at adjacent floors to decide wall color?
+                        // Or imply that mapGenerator sets sectorMap for walls too?
+                        // Currently generateLevel1 only sets sectorMap for FLOORS (0). Walls (1) remain 0 (None).
+
+                        // Heuristic: Check neighbors. If neighbor is AQUILA, I am AQUILA wall.
+                        let wallColor = "#666666"; // Default Grey
+                        let neighborSector = 0;
+                        if (sectorMap) {
+                            // Check orthogonal neighbors
+                            if (x > 0 && sectorMap[z][x - 1] !== 0) neighborSector = sectorMap[z][x - 1];
+                            else if (x < width - 1 && sectorMap[z][x + 1] !== 0) neighborSector = sectorMap[z][x + 1];
+                            else if (z > 0 && sectorMap[z - 1][x] !== 0) neighborSector = sectorMap[z - 1][x];
+                            else if (z < height - 1 && sectorMap[z + 1][x] !== 0) neighborSector = sectorMap[z + 1][x];
+
+                            if (neighborSector === 1) wallColor = "#555555"; // Aquila (Generic Concrete)
+                            if (neighborSector === 2) wallColor = "#8B4513"; // Gild (Brown/Wood/Gold)
+                            if (neighborSector === 3) wallColor = "#333333"; // Corridor (Dark)
+                        }
+
                         return (
                             <WallBlock
                                 key={`wall-${x}-${z}`}
                                 position={[xPos, WAREHOUSE_HEIGHT / 2, zPos]}
                                 height={WAREHOUSE_HEIGHT}
                                 texture={concreteTexture}
+                                color={wallColor}
                             />
                         );
                     }
@@ -126,6 +153,7 @@ export const Level1 = ({ map, pillarPositions, cratePositions }: Level1Props) =>
                         key={`crate-${i}`}
                         position={[xPos, 0.5, zPos]}
                         texture={woodBoxTexture}
+                        isStatic={true}
                     />
                 );
             })}
@@ -140,21 +168,18 @@ export const Level1 = ({ map, pillarPositions, cratePositions }: Level1Props) =>
     );
 };
 
-// Helper Wall Component (Reused logic from Level.tsx roughly)
-const WallBlock = ({ position, height, texture }: { position: [number, number, number], height: number, texture: any }) => {
+// Helper Wall Component
+const WallBlock = ({ position, height, texture, color = "#666666" }: { position: [number, number, number], height: number, texture: any, color?: string }) => {
     const [ref] = useBox(() => ({
         type: 'Static',
         position,
         args: [CELL_SIZE, height, CELL_SIZE],
     }));
 
-    // Clone texture to avoid shared repeat issues if needed, or use world triplanar in future.
-    // For now, simple mapping.
-
     return (
         <mesh ref={ref} receiveShadow>
             <boxGeometry args={[CELL_SIZE, height, CELL_SIZE]} />
-            <meshStandardMaterial map={texture} color="#666666" />
+            <meshStandardMaterial map={texture} color={color} />
         </mesh>
     );
 };

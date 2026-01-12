@@ -11,6 +11,7 @@ const SPRINT_SPEED = 10;
 const JUMP_FORCE = 5;
 
 export const Player = ({ position, exitPos }: { position: [number, number, number], exitPos?: [number, number, number] | null }) => {
+    console.log("Player.tsx: Received position prop:", position);
     const { camera, gl } = useThree();
 
     // Store
@@ -65,8 +66,17 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
 
     // Reset physics position when the 'position' prop changes (Level load)
     useEffect(() => {
+        console.log("Player.tsx: Resetting physics position to:", position);
         api.position.set(position[0], position[1], position[2]);
         api.velocity.set(0, 0, 0);
+
+        // Force retry in case of world init lag
+        setTimeout(() => {
+            console.log("Player.tsx: Force-setting position again (timeout)");
+            api.position.set(position[0], position[1], position[2]);
+            api.velocity.set(0, 0, 0);
+        }, 100);
+
     }, [position, api]); // Dependency on position ensures teleport on level switch
 
     const velocity = useRef([0, 0, 0]);
@@ -282,6 +292,11 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
 
         if (jump && Math.abs(velocity.current[1]) < 0.05) {
             api.velocity.set(velocity.current[0], JUMP_FORCE, velocity.current[2]);
+        }
+
+        // DEBUG: Check Position and Lock Status
+        if (Math.random() < 0.02) { // Every ~3s
+            console.log(`Player Pos: ${pos.current[0].toFixed(2)}, ${pos.current[1].toFixed(2)}, ${pos.current[2].toFixed(2)} | Locked: ${isControlsLocked} | Paused: ${useGameStore.getState().isPaused}`);
         }
     });
 

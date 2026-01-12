@@ -1,7 +1,7 @@
-import { Physics, usePlane } from '@react-three/cannon';
+import { Physics, usePlane, Debug } from '@react-three/cannon'; // Import Debug
 import { Sky } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
-import { useMemo } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { AmbientSound } from './components/audio/AmbientSound';
 import { VHSEffects } from './components/effects/VHSEffects';
 import { SanityManager } from './components/logic/SanityManager';
@@ -13,12 +13,15 @@ import { Level } from './components/world/Level';
 import { Level1 } from './components/world/Level1'; // Import Level1
 import { LightingController } from './components/world/LightingController';
 import { useGameStore } from './store/gameStore';
-import { generateMaze, generateWarehouse, CELL_SIZE } from './utils/mapGenerator'; // Import generateWarehouse
+import { generateMaze, generateLevel1, CELL_SIZE } from './utils/mapGenerator'; // Import generateLevel1
 import { HallucinationManager } from './components/logic/HallucinationManager';
 import { HazardManager } from './components/logic/HazardManager';
 import { MainMenu } from './components/ui/MainMenu';
 import { GameOver } from './components/ui/GameOver';
 import { PauseMenu } from './components/ui/PauseMenu';
+import { Inventory } from './components/ui/Inventory'; // Import Inventory
+
+
 
 
 // Additional Imports for SafetyFloor
@@ -69,6 +72,36 @@ const GameHUD = () => {
   );
 };
 
+const InventoryController = () => {
+  const { isInventoryOpen, setInventoryOpen, isMenuOpen, isGameOver, readingNote, setPaused } = useGameStore();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab' && !isMenuOpen && !isGameOver && !readingNote) {
+        e.preventDefault();
+
+        if (isInventoryOpen) {
+          // Closing Inventory
+          setInventoryOpen(false);
+          setPaused(false);
+          window.dispatchEvent(new Event('request-game-lock'));
+        } else {
+          // Opening Inventory
+          // First check if not already paused by other means? (optional, but safe)
+          setInventoryOpen(true);
+          setPaused(true);
+          document.exitPointerLock();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isInventoryOpen, isMenuOpen, isGameOver, readingNote, setInventoryOpen, setPaused]);
+
+  return null;
+};
+
 
 // Actually simpler:
 // Just use a component that sets opacity momentarily.
@@ -91,7 +124,7 @@ const DamageOverlay = () => {
 */
 // Let's implement this cleanly.
 
-import { useState, useRef, useEffect } from 'react'; // Ensure imports
+
 
 const DamageOverlay = () => {
   const [flash, setFlash] = useState(false);
@@ -151,18 +184,23 @@ function App() {
     };
   }, []);
 
-  // Generate Level 1 Map
-  const { map: mapL1, pillarPositions: pillarPositionsL1, cratePositions: cratePositionsL1, startPosL1 } = useMemo(() => {
-    const w = 31; // Bigger
+  // Generate Level 1 Map (Warehouse)
+  const { map: mapL1, pillarPositions: pillarPositionsL1, cratePositions: cratePositionsL1, startPosL1, sectorMap: sectorMapL1 } = useMemo(() => {
+    const w = 31;
     const h = 31;
-    const { map, pillarPositions, cratePositions } = generateWarehouse(w, h);
+    // Use generateLevel1 (Safe Wrapper)
+    const { map, pillarPositions, cratePositions, sectorMap } = generateLevel1(w, h);
 
-    // Start position for Level 1 (Center of room)
-    // Map is 31x31 centered at 0,0.
+    // Start position for Level 1 (Center)
+    // 31x31 center is 15,15.
+    // Coordinates: (15 * 5) - (31*5/2) + 2.5 = 75 - 77.5 + 2.5 = 0.
+    // So [0, 2, 0] is correct for the center.
+
     return {
       map,
       pillarPositions,
       cratePositions,
+      sectorMap, // Pass the generated sectorMap
       startPosL1: [0, 2, 0] as [number, number, number]
     };
   }, []);
@@ -192,6 +230,9 @@ function App() {
       {isGameOver && <GameOver hasWon={hasWon} />}
 
       {isPaused && <PauseMenu />}
+
+      <InventoryController />
+      <Inventory />
 
       {/* Game UI Layer */}
       {!isMenuOpen && !isGameOver && !hasWon && !readingNote && (
@@ -243,29 +284,32 @@ function App() {
       {/* Keying the Canvas/Physics by level forces a reset when level changes. 
           This ensures physics world is clean and player spawns at correct startPos. 
       */}
-      <Canvas shadows camera={{ fov: 75 }}>
+      <Canvas key={currentLevel} shadows camera={{ fov: 75 }}>
         <Sky sunPosition={currentLevel === 'LEVEL_1' ? [0, -10, 0] : [100, 20, 100]} turbidity={10} rayleigh={0.5} />
 
         <LightingController />
 
         <Physics gravity={[0, -9.8, 0]} defaultContactMaterial={{ friction: 0, restitution: 0 }}>
-          <SafetyFloor />
-          <Player position={activeStartPos} exitPos={currentLevel === 'LEVEL_0' ? exitPosL0 : null} />
+          <Debug color="black" scale={1.1}>
+            <SafetyFloor />
+            <Player position={activeStartPos} exitPos={currentLevel === 'LEVEL_0' ? exitPosL0 : null} />
 
-          {(currentLevel === 'LEVEL_0' || currentLevel === 'LEVEL_0_2') && (
-            <Level map={mapL0} manilaPos={manilaPos} remodelingDoorConfig={remodelingDoorConfig} />
-          )}
+            {(currentLevel === 'LEVEL_0' || currentLevel === 'LEVEL_0_2') && (
+              <Level map={mapL0} manilaPos={manilaPos} remodelingDoorConfig={remodelingDoorConfig} />
+            )}
 
-          {/* Render Level 1 */}
-          {currentLevel === 'LEVEL_1' && (
-            <Level1
-              map={mapL1}
-              pillarPositions={pillarPositionsL1}
-              cratePositions={cratePositionsL1}
-            />
-          )}
+            {/* Render Level 1 */}
+            {currentLevel === 'LEVEL_1' && (
+              <Level1
+                map={mapL1}
+                pillarPositions={pillarPositionsL1}
+                cratePositions={cratePositionsL1}
+                sectorMap={sectorMapL1}
+              />
+            )}
 
-          <HazardManager />
+            <HazardManager />
+          </Debug>
         </Physics>
 
         <HallucinationManager />

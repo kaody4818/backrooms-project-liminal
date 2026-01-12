@@ -5,19 +5,30 @@ export interface NoteData {
     body: string[];
 }
 
+export interface InventoryItem {
+    id: string;
+    name: string;
+    description: string;
+    icon?: string; // Optional icon URL or emoji
+    quantity: number;
+}
+
 interface GameState {
     isMenuOpen: boolean;
+    isInventoryOpen: boolean; // NEW
     isGameOver: boolean;
     hasWon: boolean;
     sanity: number;
     health: number;
     interactionText: string | null;
-    readingNote: NoteData | null; // Replaces isReadingNote
-    isInteractionBlocked: boolean; // Just in case we need general input blocking
+    readingNote: NoteData | null;
+    isInteractionBlocked: boolean;
     isPaused: boolean;
-    ambientVolumeScale: number; // For Hallucinations (1.0 = normal)
+    ambientVolumeScale: number;
     currentLevel: 'LEVEL_0' | 'LEVEL_0_2' | 'LEVEL_1';
-    shakeIntensity: number; // 0 to 1 (Trauma)
+    shakeIntensity: number;
+    inventory: InventoryItem[]; // NEW
+
     startGame: () => void;
     setGameOver: (status: boolean) => void;
     setHasWon: (status: boolean) => void;
@@ -26,15 +37,22 @@ interface GameState {
     setInteractionText: (text: string | null) => void;
     setReadingNote: (note: NoteData | null) => void;
     setPaused: (status: boolean) => void;
+    setInventoryOpen: (status: boolean) => void; // NEW
     setAmbientVolumeScale: (scale: number) => void;
     setLevel: (level: 'LEVEL_0' | 'LEVEL_0_2' | 'LEVEL_1') => void;
     addTrauma: (amount: number) => void;
     hasReadManilaNote: boolean;
     setHasReadManilaNote: (status: boolean) => void;
+
+    // Inventory Actions
+    addItem: (item: InventoryItem) => void;
+    removeItem: (itemId: string, amount?: number) => void;
+    useItem: (itemId: string) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
     isMenuOpen: true,
+    isInventoryOpen: false,
     isGameOver: false,
     hasWon: false,
     sanity: 100,
@@ -46,7 +64,22 @@ export const useGameStore = create<GameState>((set) => ({
     ambientVolumeScale: 1.0,
     currentLevel: 'LEVEL_0',
     shakeIntensity: 0,
-    startGame: () => set({ isMenuOpen: false, isGameOver: false, hasWon: false, sanity: 100, health: 100, readingNote: null, isPaused: false, ambientVolumeScale: 1.0, currentLevel: 'LEVEL_0', shakeIntensity: 0 }),
+    inventory: [],
+
+    startGame: () => set({
+        isMenuOpen: false,
+        isInventoryOpen: false,
+        isGameOver: false,
+        hasWon: false,
+        sanity: 100,
+        health: 100,
+        readingNote: null,
+        isPaused: false,
+        ambientVolumeScale: 1.0,
+        currentLevel: 'LEVEL_0',
+        shakeIntensity: 0,
+        inventory: []
+    }),
     setGameOver: (status) => set({ isGameOver: status }),
     setHasWon: (status) => set({ hasWon: status, isGameOver: true }),
     setSanity: (value) => set((state) => ({
@@ -55,18 +88,73 @@ export const useGameStore = create<GameState>((set) => ({
     setHealth: (value) => set((state) => {
         const newHealth = typeof value === 'function' ? value(state.health) : value;
         if (newHealth <= 0) {
-            return { health: 0, isGameOver: true }; // Check death immediately
+            return { health: 0, isGameOver: true };
         }
         return { health: newHealth };
     }),
     setInteractionText: (text) => set({ interactionText: text }),
     setReadingNote: (note) => set({ readingNote: note }),
     setPaused: (status) => set({ isPaused: status }),
+    setInventoryOpen: (status) => set({ isInventoryOpen: status }),
     setAmbientVolumeScale: (scale) => set({ ambientVolumeScale: scale }),
     setLevel: (level) => set({ currentLevel: level }),
     addTrauma: (amount) => set((state) => ({ shakeIntensity: Math.min(1.0, state.shakeIntensity + amount) })),
-    hasReadManilaNote: false, // Track if player read the specific note
+    hasReadManilaNote: false,
     setHasReadManilaNote: (status: boolean) => set({ hasReadManilaNote: status }),
+
+    addItem: (item) => set((state) => {
+        const existingItemIndex = state.inventory.findIndex(i => i.id === item.id);
+        if (existingItemIndex !== -1) {
+            const newInventory = [...state.inventory];
+            newInventory[existingItemIndex].quantity += item.quantity;
+            return { inventory: newInventory };
+        }
+        return { inventory: [...state.inventory, item] };
+    }),
+
+    useItem: (itemId: string) => set((state) => {
+        const itemIndex = state.inventory.findIndex(i => i.id === itemId);
+        if (itemIndex === -1) return {};
+
+        const item = state.inventory[itemIndex];
+        let consumed = false;
+
+        // Item Effects Logic
+        if (itemId === 'almond_water') {
+            console.log("Drinking Almond Water...");
+            // Restore Sanity (+20)
+            const newSanity = Math.min(100, state.sanity + 20);
+            // Restore Health (+10)
+            const newHealth = Math.min(100, state.health + 10);
+
+            consumed = true;
+            return {
+                sanity: newSanity,
+                health: newHealth,
+                interactionText: "You drank Almond Water. You feel refreshed.",
+                inventory: item.quantity > 1
+                    ? state.inventory.map(i => i.id === itemId ? { ...i, quantity: i.quantity - 1 } : i)
+                    : state.inventory.filter(i => i.id !== itemId)
+            };
+        }
+
+        return {};
+    }),
+
+    removeItem: (itemId, amount = 1) => set((state) => {
+        const existingItemIndex = state.inventory.findIndex(i => i.id === itemId);
+        if (existingItemIndex === -1) return {};
+
+        const newInventory = [...state.inventory];
+        const item = newInventory[existingItemIndex];
+
+        if (item.quantity > amount) {
+            item.quantity -= amount;
+        } else {
+            newInventory.splice(existingItemIndex, 1);
+        }
+        return { inventory: newInventory };
+    }),
 }));
 
 
