@@ -1,4 +1,4 @@
-import { Physics } from '@react-three/cannon';
+import { Physics, usePlane } from '@react-three/cannon';
 import { Sky } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import { useMemo } from 'react';
@@ -10,15 +10,26 @@ import { Player } from './components/player/Player';
 
 import { InteractionManager } from './components/interaction/InteractionManager';
 import { Level } from './components/world/Level';
+import { Level1 } from './components/world/Level1'; // Import Level1
 import { LightingController } from './components/world/LightingController';
 import { useGameStore } from './store/gameStore';
-import { generateMaze, CELL_SIZE } from './utils/mapGenerator';
+import { generateMaze, generateWarehouse, CELL_SIZE } from './utils/mapGenerator'; // Import generateWarehouse
 import { HallucinationManager } from './components/logic/HallucinationManager';
 import { HazardManager } from './components/logic/HazardManager';
 import { MainMenu } from './components/ui/MainMenu';
 import { GameOver } from './components/ui/GameOver';
 import { PauseMenu } from './components/ui/PauseMenu';
 
+
+// Additional Imports for SafetyFloor
+const SafetyFloor = () => {
+  usePlane(() => ({
+    rotation: [-Math.PI / 2, 0, 0],
+    position: [0, -0.1, 0], // Safety catch slightly below real floor
+    type: 'Static',
+  }));
+  return null;
+};
 
 // Crosshair Component
 const Crosshair = () => (
@@ -101,39 +112,63 @@ const DamageOverlay = () => {
 };
 
 function App() {
-  const { isMenuOpen, isGameOver, hasWon, interactionText, readingNote, setReadingNote, isPaused } = useGameStore();
+  const { isMenuOpen, isGameOver, hasWon, interactionText, readingNote, setReadingNote, isPaused, currentLevel } = useGameStore();
 
-  // Generate map once
-  const { map, startPos, exitPos, manilaPos } = useMemo(() => {
+  // Generate Level 0 Map
+  const { map: mapL0, startPos: startPosL0, exitPos: exitPosL0, manilaPos } = useMemo(() => {
     const size = 21;
     const { map: generatedMap, manilaPos } = generateMaze(size, size);
 
-    // Force Portal Door Location: Ensure (8,8) is a wall and (8,9) is a floor so the door spawns facing South
+    // Force Portal Door Location (Level 0)
     if (size > 9) {
       generatedMap[8][8] = 1;
       generatedMap[8][9] = 0;
-
-      // Force Lore Note Locations (Floors for Tables)
       generatedMap[2][2] = 0;   // Notice
       generatedMap[12][6] = 0;  // Complaint
     }
 
-    // Calculate world position for grid (1,1)
     const offset = (size * CELL_SIZE) / 2;
     const x = 1 * CELL_SIZE - offset;
     const z = 1 * CELL_SIZE - offset;
-
-    // Calculate world position for Manila Room
     const mx = manilaPos[0] * CELL_SIZE - offset;
     const mz = manilaPos[1] * CELL_SIZE - offset;
 
     return {
       map: generatedMap,
-      manilaPos, // Return this!
+      manilaPos,
       startPos: [x, 1.5, z] as [number, number, number],
       exitPos: [mx, 5, mz] as [number, number, number]
     };
   }, []);
+
+  // Generate Level 1 Map
+  const { map: mapL1, pillarPositions: pillarPositionsL1, cratePositions: cratePositionsL1, startPosL1 } = useMemo(() => {
+    const w = 31; // Bigger
+    const h = 31;
+    const { map, pillarPositions, cratePositions } = generateWarehouse(w, h);
+
+    // Start position for Level 1 (Center of room)
+    // Map is 31x31 centered at 0,0.
+    return {
+      map,
+      pillarPositions,
+      cratePositions,
+      startPosL1: [0, 2, 0] as [number, number, number]
+    };
+  }, []);
+
+  // Determine current Start Pos based on level
+  // Note: When transitioning, we probably need to reset Player position inside the Player component or force a re-mount.
+  // Changing the 'position' prop might not instantly teleport physics body if it only reads initial prop.
+  // Player.tsx uses `useSphere(() => ({ position }))`. Cannon handles updates if api.position.set is called.
+  // We already have Debug keys to teleport.
+  // Ideally, the Player component should listen to 'currentLevel' change and teleport? 
+  // Or we rely on the component unmounting/remounting if key changes?
+
+  // Let's key the Canvas or Physics content by Level to force full reset?
+  // A full unmount might be safer for physics state preventing bugs.
+
+  const activeStartPos = currentLevel === 'LEVEL_1' ? startPosL1 : startPosL0;
 
   return (
     <>
@@ -168,14 +203,25 @@ function App() {
 
       {/* Note Reading UI */}
       {readingNote && (
-        <div className="absolute inset-0 z-50 flex items-start justify-center pt-20 bg-black/80 cursor-alias" onClick={() => setReadingNote(null)}>
+        <div
+          className="absolute inset-0 z-50 flex items-start justify-center pt-20 bg-black/80 cursor-alias"
+          onClick={(e) => {
+            e.preventDefault();
+            setReadingNote(null);
+            window.dispatchEvent(new Event('request-game-lock'));
+          }}
+        >
           <div className="max-w-2xl bg-[#fdfef0] text-black p-12 shadow-2xl rotate-1 relative font-serif" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-bold mb-6 border-b-2 border-black pb-2">{readingNote.title}</h2>
             {readingNote.body.map((text, i) => (
               <p key={i} className="mb-4 text-lg leading-relaxed">{text}</p>
             ))}
             <button
-              onClick={() => setReadingNote(null)}
+              onClick={(e) => {
+                e.preventDefault();
+                setReadingNote(null);
+                window.dispatchEvent(new Event('request-game-lock'));
+              }}
               className="mt-8 w-full text-xs font-mono text-center text-gray-500 border-t pt-4 hover:text-red-500"
             >
               [CLOSE]
@@ -183,14 +229,32 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Keying the Canvas/Physics by level forces a reset when level changes. 
+          This ensures physics world is clean and player spawns at correct startPos. 
+      */}
       <Canvas shadows camera={{ fov: 75 }}>
-        <Sky sunPosition={[100, 20, 100]} turbidity={10} rayleigh={0.5} mieCoefficient={0.005} mieDirectionalG={0.8} />
+        <Sky sunPosition={currentLevel === 'LEVEL_1' ? [0, -10, 0] : [100, 20, 100]} turbidity={10} rayleigh={0.5} />
 
         <LightingController />
 
         <Physics gravity={[0, -9.8, 0]} defaultContactMaterial={{ friction: 0, restitution: 0 }}>
-          <Player position={startPos} exitPos={exitPos} />
-          <Level map={map} manilaPos={manilaPos} />
+          <SafetyFloor />
+          <Player position={activeStartPos} exitPos={currentLevel === 'LEVEL_0' ? exitPosL0 : null} />
+
+          {(currentLevel === 'LEVEL_0' || currentLevel === 'LEVEL_0_2') && (
+            <Level map={mapL0} manilaPos={manilaPos} />
+          )}
+
+          {/* Render Level 1 */}
+          {currentLevel === 'LEVEL_1' && (
+            <Level1
+              map={mapL1}
+              pillarPositions={pillarPositionsL1}
+              cratePositions={cratePositionsL1}
+            />
+          )}
+
           <HazardManager />
         </Physics>
 

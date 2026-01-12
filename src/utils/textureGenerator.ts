@@ -188,7 +188,7 @@ export const createWhitePaintTexture = () => {
     ctx.fillRect(0, 0, 512, 512);
 
     // Subtle Paint Roller Texture
-    for (let i = 0; i < 80000; i++) {
+    for (let i = 0; i < 15000; i++) {
         const shade = Math.random() * 20 + 235; // 235-255
         ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
         ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
@@ -217,7 +217,7 @@ export const createRedCarpetTexture = () => {
     ctx.fillRect(0, 0, 512, 512);
 
     // Carpet Fiber Noise
-    for (let i = 0; i < 60000; i++) {
+    for (let i = 0; i < 15000; i++) {
         const val = Math.random() * 50; // Variation
         // Mix of lighter red and darker red
         const r = 102 + val; // 102-152
@@ -236,6 +236,124 @@ export const createRedCarpetTexture = () => {
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
         ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    return canvas.toDataURL();
+};
+
+// --- NEW TEXTURES FOR LEVEL 1 ---
+
+export const createConcreteTexture = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    // 1. FAST Per-pixel Noise using ImageData
+    // Explicitly fill background first (though we overwrite mostly)
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, 512, 512);
+
+    const imgData = ctx.getImageData(0, 0, 512, 512);
+    const data = imgData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        const noise = (Math.random() - 0.5) * 50; // Contrast
+        data[i] = 128 + noise;     // R
+        data[i + 1] = 128 + noise; // G
+        data[i + 2] = 128 + noise; // B
+        // Alpha remains 255 from fillRect or default
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+
+    // 2. Add minimal cracks/details (Cheap vectorized)
+    ctx.strokeStyle = 'rgba(60, 60, 60, 0.4)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 50; i++) {
+        let x = Math.random() * 512;
+        let y = Math.random() * 512;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        for (let j = 0; j < 10; j++) {
+            x += Math.random() * 40 - 20;
+            y += Math.random() * 40 - 20;
+            ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+
+    return canvas.toDataURL();
+};
+
+export const createWoodBoxTexture = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    // Base Wood Color
+    ctx.fillStyle = '#8B5A2B';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Frame/Border
+    ctx.fillStyle = '#654321';
+    ctx.fillRect(0, 0, 256, 20); // Top
+    ctx.fillRect(0, 236, 256, 20); // Bottom
+    ctx.fillRect(0, 0, 20, 256); // Left
+    ctx.fillRect(236, 0, 20, 256); // Right
+    ctx.fillRect(20, 20, 216, 216); // Inner clear? No, fill over
+
+    // Diagonal Cross (Crate style)
+    ctx.beginPath();
+    ctx.strokeStyle = '#5A3A1A';
+    ctx.lineWidth = 15;
+    ctx.moveTo(20, 20);
+    ctx.lineTo(236, 236);
+    ctx.moveTo(236, 20);
+    ctx.lineTo(20, 236);
+    ctx.stroke();
+
+    // Wood Grain Noise
+    ctx.globalCompositeOperation = 'multiply';
+    for (let i = 0; i < 10000; i++) {
+        ctx.fillStyle = `rgba(0,0,0, ${Math.random() * 0.1})`;
+        ctx.fillRect(Math.random() * 256, Math.random() * 256, 4, 1);
+    }
+
+    return canvas.toDataURL();
+};
+
+export const createMetalTexture = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    // Base Metal Blue-Grey
+    ctx.fillStyle = '#7a7f80';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Metallic Shine Bands
+    const gradient = ctx.createLinearGradient(0, 0, 256, 256);
+    gradient.addColorStop(0, 'rgba(255,255,255,0)');
+    gradient.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Rust Spots
+    for (let i = 0; i < 50; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const radius = Math.random() * 10;
+        ctx.fillStyle = `rgba(139, 69, 19, ${Math.random() * 0.5})`; // SaddleBrown
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fill();

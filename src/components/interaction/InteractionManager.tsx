@@ -8,23 +8,34 @@ export const InteractionManager = () => {
     const { camera, scene } = useThree();
     const raycaster = useState(() => new Raycaster())[0];
     const center = new Vector2(0, 0); // Center of screen
-    const { setInteractionText, readingNote, setReadingNote, setHasWon, isGameOver } = useGameStore();
+    const { setInteractionText, readingNote, setReadingNote, setHasWon, isGameOver, setHasReadManilaNote } = useGameStore();
     const prevReadingNote = useRef<any>(null);
 
-    // WIN LOGIC: Trigger when closing the Manila Note
+    // Key listener for 'E' or Click
+    const lastNoteCloseTime = useRef(0);
+
+    // Track Note Reading Completion
     useEffect(() => {
         if (prevReadingNote.current?.title === "Entry #418" && !readingNote) {
-            setHasWon(true);
+            setHasReadManilaNote(true);
+            console.log("Manila Note Read. Glitch Wall should appear.");
         }
-        prevReadingNote.current = readingNote;
-    }, [readingNote, setHasWon]);
 
-    // Key listener for 'E' or Click
+        if (prevReadingNote.current && !readingNote) {
+            // Just closed a note
+            lastNoteCloseTime.current = Date.now();
+        }
+
+        prevReadingNote.current = readingNote;
+    }, [readingNote, setHasReadManilaNote]);
+
     useEffect(() => {
         const handleInteraction = (e: KeyboardEvent | MouseEvent) => {
             const state = useGameStore.getState();
-            // Critical: Check fresh state to allow UI buttons to work without triggering world interaction
             if (state.isGameOver || state.isMenuOpen || state.isPaused) return;
+
+            // Cooldown after closing note to prevent accidental re-click
+            if (Date.now() - lastNoteCloseTime.current < 500) return;
 
             if (state.readingNote) {
                 // If reading, any interaction closes it? Or specifically Escape/Click
@@ -32,6 +43,7 @@ export const InteractionManager = () => {
                 // We just handle Escape/E here for convenience?
                 if ((e as KeyboardEvent).code === 'Escape' || (e as KeyboardEvent).code === 'KeyE') {
                     setReadingNote(null);
+                    window.dispatchEvent(new Event('request-game-lock'));
                 }
                 return;
             }
@@ -42,9 +54,15 @@ export const InteractionManager = () => {
                 const intersects = raycaster.intersectObjects(scene.children, true);
 
                 // Find first interactive object within range
-                const hit = intersects.find((i) => i.object.userData && i.object.userData.interactive && i.distance < 3);
+                const hit = intersects.find((i) => i.object.userData && i.object.userData.interactive && i.distance < 5);
 
                 if (hit) {
+                    // Check for generic interact callback (Smart Object Pattern)
+                    if (hit.object.userData.onInteract) {
+                        hit.object.userData.onInteract();
+                        return; // Stop processing other types
+                    }
+
                     if (hit.object.userData.type === 'note') {
                         const noteData = hit.object.userData.noteData || {
                             title: "Entry #418",
@@ -57,6 +75,7 @@ export const InteractionManager = () => {
                             ]
                         };
                         setReadingNote(noteData);
+                        document.exitPointerLock();
 
                         // Win triggers on close (useEffect above)
                     }
@@ -81,7 +100,7 @@ export const InteractionManager = () => {
         // Constant raycast for UI prompt
         raycaster.setFromCamera(center, camera);
         const intersects = raycaster.intersectObjects(scene.children, true);
-        const hit = intersects.find((i) => i.object.userData && i.object.userData.interactive && i.distance < 3); // Max distance 3
+        const hit = intersects.find((i) => i.object.userData && i.object.userData.interactive && i.distance < 5); // Max distance 5
 
         if (hit) {
             setInteractionText(hit.object.userData.label || "Interact");

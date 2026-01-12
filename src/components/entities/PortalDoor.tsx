@@ -1,67 +1,84 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGameStore } from '../../store/gameStore';
 import { useBox } from '@react-three/cannon';
+import { Color } from 'three';
 
-export const PortalDoor = ({ position, rotation }: { position: [number, number, number], rotation: [number, number, number] }) => {
-    const [hovered, setHover] = useState(false);
+export const GlitchWall = ({ position, rotation }: { position: [number, number, number], rotation: [number, number, number] }) => {
+    // Renamed Logic internally to "GlitchWall" but keeping export name to avoid breaking imports
     const setLevel = useGameStore((state) => state.setLevel);
     const currentLevel = useGameStore((state) => state.currentLevel);
     const setInteractionText = useGameStore((state) => state.setInteractionText);
+    const meshRef = useRef<any>(null);
 
-    // Physics body for collision (Static)
+    // Physics body (Static Wall)
     const [ref] = useBox(() => ({
         type: 'Static',
         position,
         rotation,
-        args: [1.2, 2.5, 0.2] // Size
+        args: [5, 4, 1] // Wall Size (Block)
     }));
 
     const handleInteract = () => {
-        // Transition Logic
-        const targetLevel = currentLevel === 'LEVEL_0' ? 'LEVEL_0_2' : 'LEVEL_0';
-        console.log(`Transitioning to ${targetLevel}...`);
-        setLevel(targetLevel);
         setInteractionText(null);
+        if (currentLevel === 'LEVEL_0' || currentLevel === 'LEVEL_0_2') {
+            // Direct transition to Level 1 from Level 0 (or legacy 0.2)
+            console.log("Noclipping to Level 1...");
+            setLevel('LEVEL_1');
+        } else {
+            console.log("Returning to Level 0...");
+            setLevel('LEVEL_0');
+        }
     };
 
-    useFrame(() => {
-        if (hovered) {
-            const label = currentLevel === 'LEVEL_0' ? "Enter Clean Door" : "Return to Reality";
-            setInteractionText(`[E] ${label}`);
+    // Glitch Animation
+    useFrame((state) => {
+        if (!meshRef.current) return;
+        const time = state.clock.getElapsedTime();
+
+        // Random visual glitch
+        if (Math.random() < 0.1) {
+            meshRef.current.material.color = new Color(Math.random(), Math.random(), Math.random());
+            meshRef.current.position.x = (Math.random() - 0.5) * 0.1;
+        } else {
+            meshRef.current.material.color = new Color("#000000"); // Default Void Color
+            meshRef.current.position.x = 0;
         }
+
+        // Pulse opacity
+        meshRef.current.material.opacity = 0.8 + Math.sin(time * 10) * 0.1;
     });
+
+    const userData = {
+        interactive: true,
+        type: 'glitch',
+        label: "Noclip",
+        onInteract: handleInteract
+    };
 
     return (
         <group ref={ref as any}>
-            {/* Door Frame */}
-            <mesh position={[0, 1.25, 0]} castShadow receiveShadow
-                onPointerOver={() => setHover(true)}
-                onPointerOut={() => { setHover(false); setInteractionText(null); }}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    // Distance check handled by Player usually, but here we force it for simplicity if close enough
-                    if (e.distance < 3) handleInteract();
-                }}
+            <mesh
+                ref={meshRef}
+                position={[0, 2, 0]}
+                castShadow
+                receiveShadow
+                userData={userData}
+                onPointerOver={() => setInteractionText(`[E] ${userData.label}`)}
+                onPointerOut={() => setInteractionText(null)}
             >
-                <boxGeometry args={[1.2, 2.5, 0.1]} />
-                <meshStandardMaterial color="#ffffff" roughness={0.1} metalness={0.1} />
+                <boxGeometry args={[5, 4, 0.5]} />
+                <meshStandardMaterial
+                    color="#000000"
+                    transparent
+                    opacity={0.9}
+                    roughness={0.2}
+                    emissive="#111111"
+                />
             </mesh>
 
-            {/* Inner Door Panel (Slightly recessed) */}
-            <mesh position={[0, 1.25, 0.02]} castShadow>
-                <boxGeometry args={[1.0, 2.3, 0.05]} />
-                <meshStandardMaterial color="#f0f0f0" roughness={0.2} />
-            </mesh>
-
-            {/* Knob */}
-            <mesh position={[0.4, 1.2, 0.06]} castShadow>
-                <sphereGeometry args={[0.05]} />
-                <meshStandardMaterial color="gold" metalness={0.8} roughness={0.1} />
-            </mesh>
-
-            {/* Omni-light from the door (Inviting) */}
-            <pointLight position={[0, 2, 0.5]} intensity={1} distance={3} color="#ffffff" />
+            {/* Glitch Particles / Aura */}
+            <pointLight position={[0, 2, 1]} intensity={1} distance={5} color="#00ff00" />
         </group>
     );
 };

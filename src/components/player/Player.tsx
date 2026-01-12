@@ -2,8 +2,8 @@
 import { useSphere } from '@react-three/cannon';
 import { PointerLockControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useRef } from 'react';
-import { Vector3 } from 'three';
+import { useEffect, useRef, useState } from 'react';
+import { AudioListener, Vector3 } from 'three';
 import { useGameStore } from '../../store/gameStore';
 
 const SPEED = 5;
@@ -11,7 +11,47 @@ const SPRINT_SPEED = 10;
 const JUMP_FORCE = 5;
 
 export const Player = ({ position, exitPos }: { position: [number, number, number], exitPos?: [number, number, number] | null }) => {
-    const { camera } = useThree();
+    const { camera, gl } = useThree();
+
+    // Store
+    const { isMenuOpen, isGameOver, isPaused, setPaused, setHealth, readingNote } = useGameStore();
+    const isControlsLocked = !isMenuOpen && !isGameOver && !isPaused && !readingNote;
+
+    // Audio Listener
+    const [listener] = useState(() => new AudioListener());
+    useEffect(() => {
+        camera.add(listener);
+        return () => {
+            camera.remove(listener);
+        };
+    }, [camera]);
+
+    // Audio Context for Footsteps
+    const audioContext = useRef<AudioContext | null>(null);
+    const lastStepTime = useRef(0);
+
+    // Pointer Lock Controls Ref
+    const controlsRef = useRef<any>(null);
+
+    // Event Listener for UI-triggered Lock
+    useEffect(() => {
+        const handleLockRequest = () => {
+            console.log("🔒 Requesting Pointer Lock...");
+
+            if (document.pointerLockElement) {
+                return;
+            }
+
+            if (controlsRef.current) {
+                controlsRef.current.lock();
+            }
+        };
+        window.addEventListener('request-game-lock', handleLockRequest);
+        return () => window.removeEventListener('request-game-lock', handleLockRequest);
+    }, [gl]);
+
+    // Audio Context for Footsteps
+
     const [ref, api] = useSphere(() => ({
         mass: 1,
         type: 'Dynamic',
@@ -23,6 +63,12 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
         fixedRotation: true,
     }));
 
+    // Reset physics position when the 'position' prop changes (Level load)
+    useEffect(() => {
+        api.position.set(position[0], position[1], position[2]);
+        api.velocity.set(0, 0, 0);
+    }, [position, api]); // Dependency on position ensures teleport on level switch
+
     const velocity = useRef([0, 0, 0]);
     useEffect(() => api.velocity.subscribe((v) => (velocity.current = v)), [api.velocity]);
 
@@ -32,8 +78,7 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
     const smoothedVel = useRef(new Vector3(0, 0, 0));
 
     // Store
-    const { isMenuOpen, isGameOver, isPaused, setPaused, setHealth, readingNote } = useGameStore();
-    const isControlsLocked = !isMenuOpen && !isGameOver && !isPaused && !readingNote;
+    // (Moved to top)
 
     // Pause Detection via Pointer Lock
     useEffect(() => {
@@ -49,8 +94,7 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
     }, [isControlsLocked, setPaused]);
 
     // Audio Context for Footsteps
-    const audioContext = useRef<AudioContext | null>(null);
-    const lastStepTime = useRef(0);
+    // (Declared at top)
 
     // Vanilla JS Input Handling
     const input = useRef({ forward: false, backward: false, left: false, right: false, jump: false, run: false });
@@ -243,7 +287,7 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
 
     return (
         <>
-            {isControlsLocked && <PointerLockControls />}
+            <PointerLockControls ref={controlsRef} />
             <mesh ref={ref} />
         </>
     );

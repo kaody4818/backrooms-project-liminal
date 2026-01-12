@@ -15,7 +15,7 @@ import { ShadowMan } from '../entities/ShadowMan';
 import { Note } from './Note';
 import { FluorescentLight } from './FluorescentLight';
 import { useGameStore } from '../../store/gameStore';
-import { PortalDoor } from '../entities/PortalDoor';
+import { GlitchWall } from '../entities/PortalDoor';
 
 // Helper: Textured Plane (Floor)
 function TexturedPlane({ args, textureUrl, repeats = 1, ...props }: any) {
@@ -141,7 +141,7 @@ function Table({ position }: { position: [number, number, number] }) {
 
 // Main Component
 export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number, number] }) => {
-    const currentLevel = useGameStore(state => state.currentLevel);
+    const { currentLevel, hasReadManilaNote } = useGameStore();
     const CellHalf = CELL_SIZE / 2;
 
     // Generate floor size based on map size
@@ -163,7 +163,9 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
 
     // Select Active Textures based on Level
     const activeWallUrl = currentLevel === 'LEVEL_0_2' ? whitePaintUrl : wallpaperUrl;
-    const activeFloorUrl = currentLevel === 'LEVEL_0_2' ? redCarpetUrl : carpetUrl;
+    const activeFloorUrl = currentLevel === 'LEVEL_0_2' ? redCarpetUrl : carpetUrl; // wait, carpetUrl previously. 
+    // Correction: In original code: const activeFloorUrl = currentLevel === 'LEVEL_0_2' ? redCarpetUrl : carpetUrl;
+    // I will use that.
 
     // Wall Material Texture
     const wallTexture = useMemo(() => {
@@ -198,43 +200,41 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
     const offset = (map.length * CELL_SIZE) / 2;
 
     // Iterate Map using for loops
+    let testNotePlaced = false;
     for (let y = 0; y < map.length; y++) {
         for (let x = 0; x < map[0].length; x++) {
             const posX = x * CELL_SIZE - offset;
             const posZ = y * CELL_SIZE - offset;
 
             if (map[y][x] === 1) {
-                // Special: Portal Door (Attached to existing wall)
-                if (x === 8 && y === 8) {
-                    let doorPos: [number, number, number] | null = null;
-                    let doorRot: [number, number, number] = [0, 0, 0];
-                    const offset = CellHalf + 0.05; // 2.55
 
-                    // Check 4 directions for an empty space to face
-                    // North (y-1)
-                    if (y > 0 && map[y - 1][x] === 0) {
-                        doorPos = [posX, 0, posZ - offset];
-                        doorRot = [0, Math.PI, 0]; // Face North
-                    }
-                    // South (y+1)
-                    else if (y < map.length - 1 && map[y + 1][x] === 0) {
-                        doorPos = [posX, 0, posZ + offset];
-                        doorRot = [0, 0, 0]; // Face South (Default Z+)
-                    }
-                    // West (x-1)
-                    else if (x > 0 && map[y][x - 1] === 0) {
-                        doorPos = [posX - offset, 0, posZ];
-                        doorRot = [0, -Math.PI / 2, 0]; // Face West
-                    }
-                    // East (x+1)
-                    else if (x < map[0].length - 1 && map[y][x + 1] === 0) {
-                        doorPos = [posX + offset, 0, posZ];
-                        doorRot = [0, Math.PI / 2, 0]; // Face East
+                if (hasReadManilaNote && manilaPos) {
+                    const [mx, my] = manilaPos;
+                    const offset = CellHalf + 0.2;
+                    let portalParams: { pos: [number, number, number], rot: [number, number, number] } | null = null;
+
+                    // Check if this wall is a neighbor to the Manila Room center
+                    if (x === mx && y === my - 1) {
+                        // North Wall (Room is South of here) -> Face South
+                        portalParams = { pos: [posX, 0, posZ + offset], rot: [0, 0, 0] };
+                    } else if (x === mx && y === my + 1) {
+                        // South Wall (Room is North of here) -> Face North
+                        portalParams = { pos: [posX, 0, posZ - offset], rot: [0, Math.PI, 0] };
+                    } else if (x === mx - 1 && y === my) {
+                        // West Wall (Room is East of here) -> Face East
+                        portalParams = { pos: [posX + offset, 0, posZ], rot: [0, Math.PI / 2, 0] };
+                    } else if (x === mx + 1 && y === my) {
+                        // East Wall (Room is West of here) -> Face West
+                        portalParams = { pos: [posX - offset, 0, posZ], rot: [0, -Math.PI / 2, 0] };
                     }
 
-                    if (doorPos) {
+                    if (portalParams) {
                         looseElements.push(
-                            <PortalDoor key={`portal-${x}-${y}`} position={doorPos} rotation={doorRot} />
+                            <GlitchWall
+                                key={`portal-${x}-${y}`}
+                                position={portalParams.pos}
+                                rotation={portalParams.rot}
+                            />
                         );
                     }
                 }
@@ -262,6 +262,23 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
 
             } else {
                 // Floor/Empty Logic
+                if (!testNotePlaced) {
+                    looseElements.push(
+                        <Note
+                            key="start-note"
+                            position={[posX + 2.5, 0.05, posZ + 1.5]}
+                            title="TORN PAGE"
+                            body={[
+                                "If you're reading this, you've noclipped out of reality.",
+                                "The mono-yellow wallpaper, the hum of the lights... it's all endless.",
+                                "Listen carefully. If you hear something wandering nearby...",
+                                "Calculated risk: Do not engage. RUN.",
+                                "- Unknown Wanderer"
+                            ]}
+                        />
+                    );
+                    testNotePlaced = true;
+                }
 
                 // 1. Lights (Odd grid spots for paths)
                 if (x % 4 === 1 && y % 4 === 1) {
@@ -290,6 +307,7 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
                     manilaRoomFurniture.push(
                         <Note key={`note-${x}-${y}`} position={[posX, 1.05, posZ]} />
                     );
+
 
                     // Warm Light
                     manilaRoomFurniture.push(
@@ -438,6 +456,8 @@ export const Level = ({ map, manilaPos }: { map: number[][], manilaPos?: [number
             {looseElements}
             {entities}
             {manilaRoomFurniture}
+
+
         </group>
     );
 };

@@ -16,7 +16,7 @@ interface GameState {
     isInteractionBlocked: boolean; // Just in case we need general input blocking
     isPaused: boolean;
     ambientVolumeScale: number; // For Hallucinations (1.0 = normal)
-    currentLevel: 'LEVEL_0' | 'LEVEL_0_2';
+    currentLevel: 'LEVEL_0' | 'LEVEL_0_2' | 'LEVEL_1';
     shakeIntensity: number; // 0 to 1 (Trauma)
     startGame: () => void;
     setGameOver: (status: boolean) => void;
@@ -27,8 +27,10 @@ interface GameState {
     setReadingNote: (note: NoteData | null) => void;
     setPaused: (status: boolean) => void;
     setAmbientVolumeScale: (scale: number) => void;
-    setLevel: (level: 'LEVEL_0' | 'LEVEL_0_2') => void;
+    setLevel: (level: 'LEVEL_0' | 'LEVEL_0_2' | 'LEVEL_1') => void;
     addTrauma: (amount: number) => void;
+    hasReadManilaNote: boolean;
+    setHasReadManilaNote: (status: boolean) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -63,4 +65,8 @@ export const useGameStore = create<GameState>((set) => ({
     setAmbientVolumeScale: (scale) => set({ ambientVolumeScale: scale }),
     setLevel: (level) => set({ currentLevel: level }),
     addTrauma: (amount) => set((state) => ({ shakeIntensity: Math.min(1.0, state.shakeIntensity + amount) })),
+    hasReadManilaNote: false, // Track if player read the specific note
+    setHasReadManilaNote: (status: boolean) => set({ hasReadManilaNote: status }),
 }));
+
+

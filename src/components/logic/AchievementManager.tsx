@@ -3,7 +3,7 @@ import { useGameStore } from '../../store/gameStore';
 import { useAchievementStore } from '../../store/achievementStore';
 
 export const AchievementManager = () => {
-    const { isMenuOpen, sanity, readingNote, hasWon, isPaused } = useGameStore();
+    const { isMenuOpen, sanity, readingNote, hasWon, isPaused, currentLevel } = useGameStore();
     const { unlock } = useAchievementStore();
 
     // Timer for "First Steps" (Survival)
@@ -30,12 +30,12 @@ export const AchievementManager = () => {
         }
     }, [readingNote, unlock]);
 
-    // Escape Level 0: Trigger on win
+    // Escape Level 0: Trigger when reaching Manila Room (Level 0.2) or Level 1
     useEffect(() => {
-        if (hasWon) {
+        if (currentLevel === 'LEVEL_0_2' || currentLevel === 'LEVEL_1') {
             unlock('escape_level_0');
         }
-    }, [hasWon, unlock]);
+    }, [currentLevel, unlock]);
 
     // Survival Timer
     useEffect(() => {
