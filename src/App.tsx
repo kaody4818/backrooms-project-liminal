@@ -102,6 +102,34 @@ const InventoryController = () => {
   return null;
 };
 
+const CheatController = () => {
+  const { setLevel, setPaused, setMenuOpen } = useGameStore();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cheat: Shift + 1 -> Warp to Level 1
+      if (e.shiftKey && e.key === '!') {
+        console.log("Cheat Activated: Warping to Level 1");
+        setLevel('LEVEL_1');
+        setPaused(false);
+        setMenuOpen(false);
+      }
+      // Cheat: Shift + 2 -> Warp to Level 0
+      if (e.shiftKey && e.key === '@') {
+        console.log("Cheat Activated: Warping to Level 0");
+        setLevel('LEVEL_0');
+        setPaused(false);
+        setMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setLevel, setPaused, setMenuOpen]);
+
+  return null;
+}
+
 
 // Actually simpler:
 // Just use a component that sets opacity momentarily.
@@ -232,6 +260,7 @@ function App() {
       {isPaused && <PauseMenu />}
 
       <InventoryController />
+      <CheatController />
       <Inventory />
 
       {/* Game UI Layer */}

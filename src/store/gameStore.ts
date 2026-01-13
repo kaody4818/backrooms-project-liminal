@@ -15,7 +15,8 @@ export interface InventoryItem {
 
 interface GameState {
     isMenuOpen: boolean;
-    isInventoryOpen: boolean; // NEW
+    setMenuOpen: (status: boolean) => void; // NEW
+    isInventoryOpen: boolean;
     isGameOver: boolean;
     hasWon: boolean;
     sanity: number;
@@ -97,6 +98,7 @@ export const useGameStore = create<GameState>((set) => ({
     setInteractionText: (text) => set({ interactionText: text }),
     setReadingNote: (note) => set({ readingNote: note }),
     setPaused: (status) => set({ isPaused: status }),
+    setMenuOpen: (status) => set({ isMenuOpen: status }),
     setInventoryOpen: (status) => set({ isInventoryOpen: status }),
     setAmbientVolumeScale: (scale) => set({ ambientVolumeScale: scale }),
     setLevel: (level) => set({ currentLevel: level }),
