@@ -143,6 +143,11 @@ const CheatController = () => {
         console.log("Cheat: Teleport to Sector Gothic");
         useGameStore.getState().setTeleportPos([75, 2, -75]);
       }
+      // Ouroboros: Bottom-Left (Approx -75, 2, 75)
+      if (e.shiftKey && e.key === '&') { // Shift + 7
+        console.log("Cheat: Teleport to Sector Ouroboros");
+        useGameStore.getState().setTeleportPos([-75, 2, 75]);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -235,11 +240,11 @@ function App() {
   }, []);
 
   // Generate Level 1 Map (Warehouse)
-  const { map: mapL1, pillarPositions: pillarPositionsL1, cratePositions: cratePositionsL1, startPosL1, sectorMap: sectorMapL1 } = useMemo(() => {
+  const { map: mapL1, pillarPositions: pillarPositionsL1, cratePositions: cratePositionsL1, contraptionPositions: contraptionPositionsL1, workerPositions: workerPositionsL1, startPosL1, sectorMap: sectorMapL1 } = useMemo(() => {
     const w = 61;
     const h = 61;
     // Use generateLevel1 (Safe Wrapper)
-    const { map, pillarPositions, cratePositions, sectorMap } = generateLevel1(w, h);
+    const { map, pillarPositions, cratePositions, contraptionPositions, workerPositions, sectorMap } = generateLevel1(w, h);
 
     // Start position for Level 1 (Center)
     // 31x31 center is 15,15.
@@ -250,6 +255,8 @@ function App() {
       map,
       pillarPositions,
       cratePositions,
+      contraptionPositions,
+      workerPositions,
       sectorMap, // Pass the generated sectorMap
       startPosL1: [0, 2, 0] as [number, number, number]
     };
@@ -354,6 +361,8 @@ function App() {
               map={mapL1}
               pillarPositions={pillarPositionsL1}
               cratePositions={cratePositionsL1}
+              contraptionPositions={contraptionPositionsL1}
+              workerPositions={workerPositionsL1}
               sectorMap={sectorMapL1}
             />
           )}

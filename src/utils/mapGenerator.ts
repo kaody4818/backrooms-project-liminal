@@ -149,11 +149,14 @@ export const SECTOR_AQUILA = 1;
 export const SECTOR_GILD = 2;
 export const SECTOR_CORRIDOR = 3;
 export const SECTOR_GOTHIC = 4;
+export const SECTOR_OUROBOROS = 5;
 
 export type Level1Data = {
     map: number[][],
     pillarPositions: [number, number][],
     cratePositions: [number, number][],
+    contraptionPositions: [number, number][],
+    workerPositions: [number, number][],
     sectorMap: number[][]
 };
 
@@ -167,6 +170,8 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
 
     const pillarPositions: [number, number][] = [];
     const cratePositions: [number, number][] = [];
+    const contraptionPositions: [number, number][] = [];
+    const workerPositions: [number, number][] = [];
 
     // Helper to check bounds
     const isInBounds = (x: number, y: number) => x > 0 && x < width - 1 && y > 0 && y < height - 1;
@@ -226,6 +231,52 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
         }
     }
 
+    // Ouroboros: Bottom-Left (Construction Site)
+    const ouroborosRect = { x: 3, y: height - 28, w: 25, h: 25 };
+
+    // Mark region
+    for (let y = ouroborosRect.y - 1; y <= ouroborosRect.y + ouroborosRect.h; y++) {
+        for (let x = ouroborosRect.x - 1; x <= ouroborosRect.x + ouroborosRect.w; x++) {
+            if (isInBounds(x, y)) {
+                sectorMap[y][x] = SECTOR_OUROBOROS;
+            }
+        }
+    }
+
+    // Carve Ouroboros layout (Chaotic Construction)
+    const landingX = 15;
+    const landingY = 45;
+
+    for (let y = ouroborosRect.y; y < ouroborosRect.y + ouroborosRect.h; y++) {
+        for (let x = ouroborosRect.x; x < ouroborosRect.x + ouroborosRect.w; x++) {
+            if (isInBounds(x, y)) {
+                // FORCE SAFE LANDING ZONE (3x3)
+                if (Math.abs(x - landingX) <= 1 && Math.abs(y - landingY) <= 1) {
+                    map[y][x] = 0;
+                    continue; // Skip random gen for this zone
+                }
+
+                // Determine if this spot is open or has a "structure" (wall/pillar)
+                // Ouroboros is "under construction", so maybe incomplete walls
+                if (Math.random() > 0.3) {
+                    map[y][x] = 0; // Open floor
+
+                    // Random Contraptions
+                    if (Math.random() < 0.05) {
+                        contraptionPositions.push([x, y]);
+                    }
+                    // Random Workers
+                    else if (Math.random() < 0.02) {
+                        workerPositions.push([x, y]);
+                    }
+                } else {
+                    // Leave as wall (1)
+                }
+            }
+        }
+    }
+
+
     // --- 3. Generate Corridors (Maze) ---
     // Start at center based on dimensions
     let startX = Math.floor(width / 2);
@@ -266,7 +317,7 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
                     // Valid wall to carve
                     neighbors.push([nx, ny, cx + dx / 2, cy + dy / 2]);
                 } else if (map[ny][nx] === 0 && sectorMap[ny][nx] !== SECTOR_CORRIDOR) {
-                    // Hit a sector (Aquila/Gild).
+                    // Hit a sector (Aquila/Gild/Ouroboros).
                     // Do NOT connect automatically to keep entrances rare.
                     // We will punch specific holes later.
                 }
@@ -322,6 +373,7 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
 
     punchEntrance(aquilaRect, 2);
     punchEntrance(gildRect, 2);
+    punchEntrance(ouroborosRect, 2);
 
     // --- Gothic Sector: Top-Right (Curved/Circular arches) ---
     const gothicRect = { x: width - 28, y: 3, w: 25, h: 25 };
@@ -376,6 +428,8 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
         map,
         pillarPositions,
         cratePositions,
+        contraptionPositions,
+        workerPositions,
         sectorMap
     };
 };
