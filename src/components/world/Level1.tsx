@@ -2,7 +2,7 @@ import { useCompoundBody, usePlane } from '@react-three/cannon';
 import { useLayoutEffect, useMemo, useRef, type ReactElement } from 'react';
 import { DoubleSide, InstancedMesh, MeshStandardMaterial, Object3D, RepeatWrapping, TextureLoader } from 'three';
 
-import { CELL_SIZE, SECTOR_AQUILA, SECTOR_GILD } from '../../utils/mapGenerator';
+import { CELL_SIZE, SECTOR_AQUILA, SECTOR_GILD, SECTOR_GOTHIC } from '../../utils/mapGenerator';
 import { Crate } from '../entities/Crate';
 import { ConcretePillar } from './ConcretePillar';
 import { FluorescentLight } from './FluorescentLight';
@@ -43,7 +43,10 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
             ceilingPipes: load('/textures/l1_ceiling_pipes.png'),
             corridorWall: load('/textures/l1_corridor_wall.png'),
             concreteFloor: load('/textures/concrete_floor.png'), // Aquila/Corridor Floor
-            woodBox: load('/textures/wood_crate.png')
+            woodBox: load('/textures/wood_crate.png'),
+            gothicWall: load('/textures/l1_gothic_wall.png'),
+            gothicFloor: load('/textures/l1_gothic_floor.png'),
+            gothicPillar: load('/textures/l1_gothic_pillar.png'),
         };
 
         const matData = {
@@ -54,7 +57,9 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
             gildFloor: new MeshStandardMaterial({ map: texData.gildFloor }),
             ceilingPipes: new MeshStandardMaterial({ map: texData.ceilingPipes, side: DoubleSide }),
             ceilingConcrete: new MeshStandardMaterial({ map: texData.concreteFloor, side: DoubleSide }),
-            woodBox: new MeshStandardMaterial({ map: texData.woodBox })
+            woodBox: new MeshStandardMaterial({ map: texData.woodBox }),
+            gothicWall: new MeshStandardMaterial({ map: texData.gothicWall }),
+            gothicFloor: new MeshStandardMaterial({ map: texData.gothicFloor }),
         };
 
         return { materials: matData, textures: texData };
@@ -99,27 +104,33 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
     // Refs
     const floorConcreteRef = useRef<InstancedMesh>(null);
     const floorGildRef = useRef<InstancedMesh>(null);
+    const floorGothicRef = useRef<InstancedMesh>(null);
     const ceilingConcreteRef = useRef<InstancedMesh>(null);
     const ceilingPipesRef = useRef<InstancedMesh>(null);
+    const ceilingGothicRef = useRef<InstancedMesh>(null);
 
     // Wall Face Refs
     const wallAquilaRef = useRef<InstancedMesh>(null);
     const wallGildRef = useRef<InstancedMesh>(null);
     const wallCorridorRef = useRef<InstancedMesh>(null);
+    const wallGothicRef = useRef<InstancedMesh>(null);
 
     // Layout Effect for Matrices
     useLayoutEffect(() => {
-        if (!floorConcreteRef.current || !floorGildRef.current || !ceilingConcreteRef.current || !ceilingPipesRef.current ||
-            !wallAquilaRef.current || !wallGildRef.current || !wallCorridorRef.current) return;
+        if (!floorConcreteRef.current || !floorGildRef.current || !floorGothicRef.current || !ceilingConcreteRef.current || !ceilingPipesRef.current || !ceilingGothicRef.current ||
+            !wallAquilaRef.current || !wallGildRef.current || !wallCorridorRef.current || !wallGothicRef.current) return;
 
         let floorConcreteCount = 0;
         let floorGildCount = 0;
+        let floorGothicCount = 0;
         let ceilingConcreteCount = 0;
         let ceilingPipesCount = 0;
+        let ceilingGothicCount = 0;
 
         let wallAquilaCount = 0;
         let wallGildCount = 0;
         let wallCorridorCount = 0;
+        let wallGothicCount = 0;
 
         const dummy = new Object3D();
 
@@ -130,6 +141,7 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
 
             if (textureType === SECTOR_AQUILA) wallAquilaRef.current!.setMatrixAt(wallAquilaCount++, dummy.matrix);
             else if (textureType === SECTOR_GILD) wallGildRef.current!.setMatrixAt(wallGildCount++, dummy.matrix);
+            else if (textureType === SECTOR_GOTHIC) wallGothicRef.current!.setMatrixAt(wallGothicCount++, dummy.matrix);
             else wallCorridorRef.current!.setMatrixAt(wallCorridorCount++, dummy.matrix);
         };
 
@@ -149,6 +161,7 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
                     dummy.rotation.set(-Math.PI / 2, 0, 0);
                     dummy.updateMatrix();
                     if (sector === SECTOR_GILD) floorGildRef.current!.setMatrixAt(floorGildCount++, dummy.matrix);
+                    else if (sector === SECTOR_GOTHIC) floorGothicRef.current!.setMatrixAt(floorGothicCount++, dummy.matrix);
                     else floorConcreteRef.current!.setMatrixAt(floorConcreteCount++, dummy.matrix);
 
                     // Ceiling
@@ -156,6 +169,7 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
                     dummy.rotation.set(Math.PI / 2, 0, 0);
                     dummy.updateMatrix();
                     if (sector === SECTOR_GILD) ceilingPipesRef.current!.setMatrixAt(ceilingPipesCount++, dummy.matrix);
+                    else if (sector === SECTOR_GOTHIC) ceilingGothicRef.current!.setMatrixAt(ceilingGothicCount++, dummy.matrix);
                     else ceilingConcreteRef.current!.setMatrixAt(ceilingConcreteCount++, dummy.matrix);
                 }
 
@@ -208,6 +222,15 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
         wallCorridorRef.current!.count = wallCorridorCount;
         wallCorridorRef.current!.instanceMatrix.needsUpdate = true;
 
+        floorGothicRef.current!.count = floorGothicCount;
+        floorGothicRef.current!.instanceMatrix.needsUpdate = true;
+
+        ceilingGothicRef.current!.count = ceilingGothicCount;
+        ceilingGothicRef.current!.instanceMatrix.needsUpdate = true;
+
+        wallGothicRef.current!.count = wallGothicCount;
+        wallGothicRef.current!.instanceMatrix.needsUpdate = true;
+
     }, [map, sectorMap, worldWidth, worldHeight]);
 
     const maxInstances = width * height * 5; // Safe upper bound
@@ -242,6 +265,11 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
                 <planeGeometry args={[CELL_SIZE, CELL_SIZE]} />
                 <primitive object={materials.gildFloor} attach="material" />
             </instancedMesh>
+            <instancedMesh ref={floorGothicRef} args={[undefined, undefined, maxInstances]} receiveShadow>
+                <planeGeometry args={[CELL_SIZE, CELL_SIZE]} />
+                <primitive object={materials.gothicFloor} attach="material" />
+            </instancedMesh>
+
 
             {/* --- Ceiling Instances --- */}
             <instancedMesh ref={ceilingConcreteRef} args={[undefined, undefined, maxInstances]}>
@@ -251,6 +279,10 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
             <instancedMesh ref={ceilingPipesRef} args={[undefined, undefined, maxInstances]}>
                 <planeGeometry args={[CELL_SIZE, CELL_SIZE]} />
                 <primitive object={materials.ceilingPipes} attach="material" />
+            </instancedMesh>
+            <instancedMesh ref={ceilingGothicRef} args={[undefined, undefined, maxInstances]}>
+                <planeGeometry args={[CELL_SIZE, CELL_SIZE]} />
+                <primitive object={materials.gothicFloor} attach="material" />
             </instancedMesh>
 
             {/* --- Wall Face Instances (Visuals Only) --- */}
@@ -266,6 +298,10 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
                 <planeGeometry args={[CELL_SIZE, WAREHOUSE_HEIGHT]} />
                 <primitive object={materials.corridorWall} attach="material" />
             </instancedMesh>
+            <instancedMesh ref={wallGothicRef} args={[undefined, undefined, maxInstances]} receiveShadow>
+                <planeGeometry args={[CELL_SIZE, WAREHOUSE_HEIGHT]} />
+                <primitive object={materials.gothicWall} attach="material" />
+            </instancedMesh>
 
             {/* --- Static Props --- */}
             {/* Pillars */}
@@ -277,7 +313,8 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
                         key={`pillar-${i}`}
                         position={[xPos, WAREHOUSE_HEIGHT / 2, zPos]}
                         height={WAREHOUSE_HEIGHT}
-                        texture={textures.aquilaPillar}
+                        texture={sectorMap[pz][px] === SECTOR_GOTHIC ? textures.gothicPillar : textures.aquilaPillar}
+                        shape={sectorMap[pz][px] === SECTOR_GOTHIC ? 'cylinder' : 'box'}
                     />
                 );
             })}

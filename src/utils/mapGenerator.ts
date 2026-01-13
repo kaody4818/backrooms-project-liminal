@@ -148,6 +148,7 @@ export const SECTOR_NONE = 0;
 export const SECTOR_AQUILA = 1;
 export const SECTOR_GILD = 2;
 export const SECTOR_CORRIDOR = 3;
+export const SECTOR_GOTHIC = 4;
 
 export type Level1Data = {
     map: number[][],
@@ -321,6 +322,55 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
 
     punchEntrance(aquilaRect, 2);
     punchEntrance(gildRect, 2);
+
+    // --- Gothic Sector: Top-Right (Curved/Circular arches) ---
+    const gothicRect = { x: width - 28, y: 3, w: 25, h: 25 };
+
+    // Mark region
+    for (let y = gothicRect.y - 1; y <= gothicRect.y + gothicRect.h; y++) {
+        for (let x = gothicRect.x - 1; x <= gothicRect.x + gothicRect.w; x++) {
+            if (isInBounds(x, y)) {
+                sectorMap[y][x] = SECTOR_GOTHIC;
+            }
+        }
+    }
+
+    // Carve circular/curved room
+    const centerX = gothicRect.x + gothicRect.w / 2;
+    const centerY = gothicRect.y + gothicRect.h / 2;
+    const radius = Math.min(gothicRect.w, gothicRect.h) / 2 - 2;
+
+    for (let y = gothicRect.y; y < gothicRect.y + gothicRect.h; y++) {
+        for (let x = gothicRect.x; x < gothicRect.x + gothicRect.w; x++) {
+            if (isInBounds(x, y)) {
+                const dx = x - centerX;
+                const dy = y - centerY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < radius) {
+                    map[y][x] = 0; // Floor
+
+                    // Radial Pillars
+                    // Place pillars in a ring
+                    if (dist > radius - 2 && dist < radius - 1) {
+                        // approx ring
+                        // Make sure it's not too dense, check angles?
+                        // Simple grid check for ring:
+                        if (x % 2 === 0 && y % 2 === 0) {
+                            pillarPositions.push([x, y]);
+                        }
+                    } else if (dist < 3) {
+                        // Central structure or pillar
+                        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+                            pillarPositions.push([x, y]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    punchEntrance(gothicRect, 2);
 
     return {
         map,

@@ -138,6 +138,11 @@ const CheatController = () => {
         console.log("Cheat: Teleport to Center");
         useGameStore.getState().setTeleportPos([0, 2, 0]);
       }
+      // Gothic: Top-Right (Approx 75, 2, -75)
+      if (e.shiftKey && e.key === '^') { // Shift + 6
+        console.log("Cheat: Teleport to Sector Gothic");
+        useGameStore.getState().setTeleportPos([75, 2, -75]);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
