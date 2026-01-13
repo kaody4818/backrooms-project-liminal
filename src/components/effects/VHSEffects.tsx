@@ -8,8 +8,9 @@ export const VHSEffects = () => {
 
     // Calculate effect intensities based on sanity (100 -> 0)
     // As sanity drops, effects get stronger
-    const noiseOpacity = 0.05 + (100 - sanity) * 0.002; // 0.05 -> 0.25 max
-    const aberrationOffset = 0.002 + (100 - sanity) * 0.0001; // 0.002 -> 0.012
+    // Reduced base values to prevent eye strain
+    const noiseOpacity = 0.02 + (100 - sanity) * 0.002; // 0.02 -> 0.22 max
+    const aberrationOffset = 0.0005 + (100 - sanity) * 0.0001; // Almost zero at start
 
     return (
         <EffectComposer>

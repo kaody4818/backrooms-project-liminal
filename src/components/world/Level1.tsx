@@ -35,6 +35,7 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
 
         return {
             aquilaWall: load('/textures/l1_aquila_wall.png'),
+            aquilaPillar: load('/textures/l1_aquila_pillar.png'),
             gildWall: load('/textures/l1_gild_wall.png'),
             gildFloor: load('/textures/l1_gild_floor.png'),
             ceilingPipes: load('/textures/l1_ceiling_pipes.png'),
@@ -79,36 +80,44 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
 
                 // --- 1. WALLS ---
                 if (cell === 1) {
-                    // Determine wall texture based on neighbor sector (heuristic)
-                    // If no sector neighbor (outer void), default to Aquila or Corridor
+                    // Logic: A wall's face should match the theme of the room it is facing.
+                    // If neighbor is Aquila (and open), that face should be Aquila texture.
+                    // If neighbor is Wall, it's hidden, so default to Corridor.
 
-                    let wallTex = textures.corridorWall; // Default
-                    let neighborSector = SECTOR_CORRIDOR;
+                    const getSectorTexture = (nx: number, nz: number) => {
+                        if (nx < 0 || nx >= width || nz < 0 || nz >= height) return textures.corridorWall; // Out of bounds
 
-                    // Check neighbors to decide style
-                    if (x > 0 && sectorMap[z][x - 1] !== 0) neighborSector = sectorMap[z][x - 1];
-                    else if (x < width - 1 && sectorMap[z][x + 1] !== 0) neighborSector = sectorMap[z][x + 1];
-                    else if (z > 0 && sectorMap[z - 1][x] !== 0) neighborSector = sectorMap[z - 1][x];
-                    else if (z < height - 1 && sectorMap[z + 1][x] !== 0) neighborSector = sectorMap[z + 1][x];
+                        // If neighbor is a wall, use OUR sector (or default) to avoid leaks? 
+                        // Actually, if it's a wall, the face is hidden.
+                        // But if we want consistent internal logic: check neighbor sector.
+                        const s = sectorMap[nz][nx];
+                        if (s === SECTOR_AQUILA) return textures.aquilaWall;
+                        if (s === SECTOR_GILD) return textures.gildWall;
+                        return textures.corridorWall;
+                    };
 
-                    if (neighborSector === SECTOR_AQUILA) wallTex = textures.aquilaWall;
-                    else if (neighborSector === SECTOR_GILD) wallTex = textures.gildWall;
+                    // Three.js Box Material Order: Right (px), Left (nx), Top (py), Bottom (ny), Front (pz), Back (nz)
+                    // Our Grid: x+ (Right), x- (Left), y+ (Up), y- (Down), z+ (Front/South), z- (Back/North)
+
+                    const matRight = getSectorTexture(x + 1, z);
+                    const matLeft = getSectorTexture(x - 1, z);
+                    const matTop = textures.concreteFloor; // Generic top
+                    const matBottom = textures.concreteFloor; // Generic bottom
+                    const matFront = getSectorTexture(x, z + 1);
+                    const matBack = getSectorTexture(x, z - 1);
 
                     elements.push(
-                        <WallBlock
+                        <WallBlockMulti
                             key={`wall-${x}-${z}`}
                             position={[xPos, WAREHOUSE_HEIGHT / 2, zPos]}
                             height={WAREHOUSE_HEIGHT}
-                            texture={wallTex}
+                            materials={[matRight, matLeft, matTop, matBottom, matFront, matBack]}
                         />
                     );
                 }
                 // --- 2. FLOORS & CEILINGS (for empty space 0 usually) ---
                 // Even walls need floors/ceilings above/below them technically, but we only verify walkables (0)
                 // Actually, if we use a giant plane for physics, visuals should be tiled on top.
-                // We'll render visual floors ONLY where map index is 0 or 1?
-                // Visual floor should cover EVERYTHING to avoid z-fighting with the physics plane if it has a material?
-                // The physics plane (floorRef) below uses the material.
                 // We should make the physics plane invisible and render tiles on top.
 
                 // Let's render Floor/Ceiling Tiles for every cell (0 or 1) to cover the map.
@@ -185,7 +194,7 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
                         key={`pillar-${i}`}
                         position={[xPos, WAREHOUSE_HEIGHT / 2, zPos]}
                         height={WAREHOUSE_HEIGHT}
-                        texture={textures.aquilaWall} // Use Aquila texture for pillars
+                        texture={textures.aquilaPillar} // Use Aquila texture for pillars
                     />
                 );
             })}
@@ -208,14 +217,14 @@ export const Level1 = ({ map, pillarPositions, cratePositions, sectorMap }: Leve
             {lights}
 
             {/* Fog for Atmosphere */}
-            <fog attach="fog" args={['#111111', 5, 60]} />
+            <fog attach="fog" args={['#111111', 15, 60]} />
             <color attach="background" args={['#111111']} />
         </group>
     );
 };
 
-// Helper Wall Component (Updated props)
-const WallBlock = ({ position, height, texture }: { position: [number, number, number], height: number, texture: any }) => {
+// Replace WallBlock with WallBlockMulti to support array of materials
+const WallBlockMulti = ({ position, height, materials }: { position: [number, number, number], height: number, materials: any[] }) => {
     const [ref] = useBox(() => ({
         type: 'Static',
         position,
@@ -225,7 +234,10 @@ const WallBlock = ({ position, height, texture }: { position: [number, number, n
     return (
         <mesh ref={ref} receiveShadow>
             <boxGeometry args={[CELL_SIZE, height, CELL_SIZE]} />
-            <meshStandardMaterial map={texture} />
+            {/* Map materials array to meshStandardMaterials for each face */}
+            {materials.map((map, index) => (
+                <meshStandardMaterial key={index} attach={`material-${index}`} map={map} />
+            ))}
         </mesh>
     );
 };

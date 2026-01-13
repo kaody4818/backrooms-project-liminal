@@ -159,7 +159,11 @@ export type Level1Data = {
 export const generateLevel1 = (width: number, height: number): Level1Data => {
     // 1. Initialize Map with Walls
     const map: number[][] = Array(height).fill(null).map(() => Array(width).fill(1));
-    const sectorMap: number[][] = Array(height).fill(null).map(() => Array(width).fill(SECTOR_NONE));
+
+    // Initialize Sector Map with Explicit Regions (Walls included)
+    // Default everything to CORRIDOR first
+    const sectorMap: number[][] = Array(height).fill(null).map(() => Array(width).fill(SECTOR_CORRIDOR));
+
     const pillarPositions: [number, number][] = [];
     const cratePositions: [number, number][] = [];
 
@@ -171,11 +175,23 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
     // Aquila: Top-Left (Open room with pillars)
     // Align with odd grid for maze compatibility (starts at 3,3)
     const aquilaRect = { x: 3, y: 3, w: 11, h: 11 };
+
+    // Mark the entire region (including walls) as Aquila
+    // We add a padding of 1 to include the walls ENCLOSING the room
+    for (let y = aquilaRect.y - 1; y <= aquilaRect.y + aquilaRect.h; y++) {
+        for (let x = aquilaRect.x - 1; x <= aquilaRect.x + aquilaRect.w; x++) {
+            if (isInBounds(x, y)) {
+                sectorMap[y][x] = SECTOR_AQUILA;
+            }
+        }
+    }
+
+    // Now Carve the room floor (strictly inside)
     for (let y = aquilaRect.y; y < aquilaRect.y + aquilaRect.h; y++) {
         for (let x = aquilaRect.x; x < aquilaRect.x + aquilaRect.w; x++) {
             if (isInBounds(x, y)) {
                 map[y][x] = 0;
-                sectorMap[y][x] = SECTOR_AQUILA;
+                // sectorMap is already set
                 if ((x - aquilaRect.x) % 4 === 2 && (y - aquilaRect.y) % 4 === 2) {
                     pillarPositions.push([x, y]);
                 }
@@ -185,11 +201,21 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
 
     // Gild: Bottom-Right (Room with crates)
     const gildRect = { x: width - 14, y: height - 14, w: 11, h: 11 };
+
+    // Mark region (including walls) as Gild
+    for (let y = gildRect.y - 1; y <= gildRect.y + gildRect.h; y++) {
+        for (let x = gildRect.x - 1; x <= gildRect.x + gildRect.w; x++) {
+            if (isInBounds(x, y)) {
+                sectorMap[y][x] = SECTOR_GILD;
+            }
+        }
+    }
+
+    // Carve Gild floor
     for (let y = gildRect.y; y < gildRect.y + gildRect.h; y++) {
         for (let x = gildRect.x; x < gildRect.x + gildRect.w; x++) {
             if (isInBounds(x, y)) {
                 map[y][x] = 0;
-                sectorMap[y][x] = SECTOR_GILD;
                 if (Math.random() < 0.1) {
                     if (x > gildRect.x + 1 && x < gildRect.x + gildRect.w - 1 && y > gildRect.y + 1 && y < gildRect.y + gildRect.h - 1) {
                         cratePositions.push([x, y]);
