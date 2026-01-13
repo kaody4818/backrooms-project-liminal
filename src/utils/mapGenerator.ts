@@ -174,7 +174,7 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
 
     // Aquila: Top-Left (Open room with pillars)
     // Align with odd grid for maze compatibility (starts at 3,3)
-    const aquilaRect = { x: 3, y: 3, w: 11, h: 11 };
+    const aquilaRect = { x: 3, y: 3, w: 25, h: 25 };
 
     // Mark the entire region (including walls) as Aquila
     // We add a padding of 1 to include the walls ENCLOSING the room
@@ -200,7 +200,7 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
     }
 
     // Gild: Bottom-Right (Room with crates)
-    const gildRect = { x: width - 14, y: height - 14, w: 11, h: 11 };
+    const gildRect = { x: width - 28, y: height - 28, w: 25, h: 25 };
 
     // Mark region (including walls) as Gild
     for (let y = gildRect.y - 1; y <= gildRect.y + gildRect.h; y++) {
@@ -226,14 +226,26 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
     }
 
     // --- 3. Generate Corridors (Maze) ---
-    // Start at center (15,15) ensuring it is carved for spawn.
-    const startX = 15;
-    const startY = 15;
+    // Start at center based on dimensions
+    let startX = Math.floor(width / 2);
+    let startY = Math.floor(height / 2);
+
+    // Ensure start is odd for maze generation (if preferred) or just valid bounds
+    if (startX % 2 === 0) startX++;
+    if (startY % 2 === 0) startY++;
 
     // Ensure center is open for spawn
     if (isInBounds(startX, startY)) {
         map[startY][startX] = 0;
         sectorMap[startY][startX] = SECTOR_CORRIDOR;
+    }
+
+    // Force carve the EXACT center for player spawn calculation (0,0 world pos -> center index)
+    const centerIndexX = Math.floor(width / 2);
+    const centerIndexY = Math.floor(height / 2);
+    if (isInBounds(centerIndexX, centerIndexY)) {
+        map[centerIndexY][centerIndexX] = 0;
+        sectorMap[centerIndexY][centerIndexX] = SECTOR_CORRIDOR;
     }
 
     const stack: [number, number][] = [[startX, startY]];

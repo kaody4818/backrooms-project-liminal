@@ -186,8 +186,8 @@ function App() {
 
   // Generate Level 1 Map (Warehouse)
   const { map: mapL1, pillarPositions: pillarPositionsL1, cratePositions: cratePositionsL1, startPosL1, sectorMap: sectorMapL1 } = useMemo(() => {
-    const w = 31;
-    const h = 31;
+    const w = 61;
+    const h = 61;
     // Use generateLevel1 (Safe Wrapper)
     const { map, pillarPositions, cratePositions, sectorMap } = generateLevel1(w, h);
 
