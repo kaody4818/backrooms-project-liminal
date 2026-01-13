@@ -13,11 +13,16 @@ The classic monoyellow madness. Infinite beige carpets, buzzing fluorescent ligh
 *   **Hazards:** Sanity Decay, Shadow Man.
 *   **Objective:** Find the path forward.
 
-### Level 0.2: "Remodeled Mess" **(NEW)**
-A sector formerly under renovation by the "Backrooms Remodelling Co."
-White paint, red carpets, and abandoned tools. But funding was cut, and the geometry is collapsing.
+### Level 0.2: "Remodeled Mess"
+A sector formerly under renovation. White paint, red carpets, and abandoned tools.
 *   **Hazards:** Falling Ceiling Tiles ("The Collapse"), Debris.
 *   **Lore:** Find scattered notes from disgruntled contractors.
+
+### Level 1: "Habitable Zone" **(NEW)**
+A massive concrete warehouse (61x61) filled with fog, puddles, and crates.
+*   **Atmosphere:** Industrial, dark, and humid.
+*   **Tech:** Fully optimized with InstancedMesh rendering for high performance.
+*   **Hazards:** (Coming Soon)
 
 ## 🎮 How to Play
 
@@ -28,7 +33,8 @@ White paint, red carpets, and abandoned tools. But funding was cut, and the geom
 *   **Look:** Mouse (Click game screen to lock cursor)
 *   **Interact:** `E` (Open doors, Read notes)
 *   **Pause/Unlock Cursor:** `ESC`
-*   **Debug Teleport:** `P` (To Level 0.2)
+*   **Inventory:** `TAB`
+*   **Debug Teleport:** `Shift + 1` (To Level 1), `Shift + 2` (To Level 0)
 
 ### Mechanics
 *   **Sanity System:** Staying in the dark or looking at anomalies drains your sanity. Low sanity causes audio/visual hallucinations.
