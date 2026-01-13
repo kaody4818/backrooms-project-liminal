@@ -48,6 +48,8 @@ interface GameState {
     addItem: (item: InventoryItem) => void;
     removeItem: (itemId: string, amount?: number) => void;
     useItem: (itemId: string) => void;
+    isLoading: boolean;
+    setLoading: (status: boolean) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -155,6 +157,9 @@ export const useGameStore = create<GameState>((set) => ({
         }
         return { inventory: newInventory };
     }),
+
+    isLoading: false,
+    setLoading: (status) => set({ isLoading: status }),
 }));
 
 
