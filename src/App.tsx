@@ -121,6 +121,23 @@ const CheatController = () => {
         setPaused(false);
         setMenuOpen(false);
       }
+
+      // LEVEL 1 SECTOR CHEATS
+      // Aquila: Top-Left (Approx -75, 2, -75)
+      if (e.shiftKey && e.key === '#') { // Shift + 3
+        console.log("Cheat: Teleport to Sector Aquila");
+        useGameStore.getState().setTeleportPos([-75, 2, -75]);
+      }
+      // Gild: Bottom-Right (Approx 75, 2, 75)
+      if (e.shiftKey && e.key === '$') { // Shift + 4
+        console.log("Cheat: Teleport to Sector Gild");
+        useGameStore.getState().setTeleportPos([75, 2, 75]);
+      }
+      // Corridor Center
+      if (e.shiftKey && e.key === '%') { // Shift + 5
+        console.log("Cheat: Teleport to Center");
+        useGameStore.getState().setTeleportPos([0, 2, 0]);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);

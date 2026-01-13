@@ -51,6 +51,10 @@ interface GameState {
     useItem: (itemId: string) => void;
     isLoading: boolean;
     setLoading: (status: boolean) => void;
+
+    // Teleportation
+    teleportPos: [number, number, number] | null;
+    setTeleportPos: (pos: [number, number, number] | null) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -81,7 +85,8 @@ export const useGameStore = create<GameState>((set) => ({
         ambientVolumeScale: 1.0,
         currentLevel: 'LEVEL_0',
         shakeIntensity: 0,
-        inventory: []
+        inventory: [],
+        teleportPos: null
     }),
     setGameOver: (status) => set({ isGameOver: status }),
     setHasWon: (status) => set({ hasWon: status, isGameOver: true }),
@@ -162,6 +167,9 @@ export const useGameStore = create<GameState>((set) => ({
 
     isLoading: false,
     setLoading: (status) => set({ isLoading: status }),
+
+    teleportPos: null,
+    setTeleportPos: (pos) => set({ teleportPos: pos }),
 }));
 
 

@@ -53,6 +53,7 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
 
     // Audio Context for Footsteps
 
+
     const [ref, api] = useSphere(() => ({
         mass: 1,
         type: 'Dynamic',
@@ -63,6 +64,21 @@ export const Player = ({ position, exitPos }: { position: [number, number, numbe
         allowSleep: false,
         fixedRotation: true,
     }));
+
+    // Teleport Logic (from Store)
+    const { teleportPos, setTeleportPos } = useGameStore();
+    useEffect(() => {
+        if (teleportPos) {
+            console.log("Player.tsx: Teleporting to", teleportPos);
+            api.position.set(teleportPos[0], teleportPos[1], teleportPos[2]);
+            api.velocity.set(0, 0, 0);
+
+            // Clear request immediately to avoid loop, but maybe small delay to ensure physics catches up?
+            // Cannon is usually immediate on .set() but React state might loop if not careful.
+            setTeleportPos(null);
+        }
+    }, [teleportPos, api, setTeleportPos]);
+
 
     // Reset physics position when the 'position' prop changes (Level load)
     useEffect(() => {
