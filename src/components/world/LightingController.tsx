@@ -1,75 +1,42 @@
 
 import { useFrame, useThree } from '@react-three/fiber';
-import { useRef, useState, useEffect } from 'react';
+import { useRef } from 'react';
 import { PointLight } from 'three';
 import { useGameStore } from '../../store/gameStore';
 
 export const LightingController = () => {
     const lightRef = useRef<PointLight>(null);
-    const { sanity, currentLevel } = useGameStore();
+    const { sanity, currentLevel, isGlobalFlicker } = useGameStore();
     const { camera } = useThree();
-
-    // Blackout State (Level 1 Exclusive)
-    const [isBlackout, setBlackout] = useState(false);
-
-    useEffect(() => {
-        if (currentLevel !== 'LEVEL_1') {
-            setBlackout(false);
-            return;
-        }
-
-        // Random Blackout Loop
-        const loop = () => {
-            if (Math.random() < 0.3) { // 30% chance to blackout every cycle
-                setBlackout(true);
-                // Lasts 5-15 seconds
-                const duration = 5000 + Math.random() * 10000;
-                setTimeout(() => {
-                    setBlackout(false);
-                    // Schedule next check
-                    scheduleNext();
-                }, duration);
-            } else {
-                scheduleNext();
-            }
-        };
-
-        const scheduleNext = () => {
-            // Check every 20-40 seconds
-            const delay = 20000 + Math.random() * 20000;
-            setTimeout(loop, delay);
-        };
-
-        const timeout = setTimeout(loop, 10000); // Initial delay
-        return () => clearTimeout(timeout);
-    }, [currentLevel]);
-
 
     useFrame((state) => {
         if (!lightRef.current) return;
 
         // Base settings
         let baseIntensity = 1.0;
-        let ambient = 0.4;
-        let color = "#ffffee";
 
         if (currentLevel === 'LEVEL_1') {
             baseIntensity = 0.8;
-            ambient = 0.2; // Darker
-            color = "#ccffcc"; // Slight green tint? Or just cold white. "#e0f0ff"
         }
 
-        if (isBlackout) {
-            baseIntensity = 0.05; // Almost pitch black
-            ambient = 0.05;
-        }
+        if (isGlobalFlicker) {
+            // Global Flicker Event: Strobe Effect on Ambient Light
+            const time = state.clock.getElapsedTime();
+            const strobe = Math.sin(time * 50);
 
-        // Flickering Logic
-        const time = state.clock.getElapsedTime();
-        const flicker = Math.sin(time * 20) * Math.cos(time * 30 + 12);
+            if (strobe > 0.8) {
+                // Flash
+                lightRef.current.intensity = 3.0; // Very bright flash
+            } else {
+                // Darkness
+                lightRef.current.intensity = 0.05; // Almost pitch black
+            }
 
-        // Random darkening spikes (independent of blackout)
-        if (!isBlackout) {
+        } else {
+            // Normal Behavior
+            const time = state.clock.getElapsedTime();
+            const flicker = Math.sin(time * 20) * Math.cos(time * 30 + 12);
+
             if (Math.random() < 0.05) {
                 lightRef.current.intensity = baseIntensity * 0.1;
             } else if (Math.random() < 0.05) {
@@ -77,19 +44,13 @@ export const LightingController = () => {
             } else {
                 lightRef.current.intensity = baseIntensity + (flicker * 0.1);
             }
-        } else {
-            // Deep darkness flicker
-            lightRef.current.intensity = Math.random() < 0.1 ? 0.1 : 0;
         }
-
-        // This component only controls the MAIN overhead light. 
-        // Level1 geometry might block it.
     });
 
     return (
         <group>
-            {/* Global Ambient Light */}
-            <ambientLight intensity={currentLevel === 'LEVEL_1' && isBlackout ? 0 : 0.4} />
+            {/* Global Ambient Light - Darkens during flicker */}
+            <ambientLight intensity={isGlobalFlicker ? 0.05 : 0.4} />
 
             {/* Main Light */}
             <pointLight
@@ -105,7 +66,7 @@ export const LightingController = () => {
             {/* Flashlight / Proximity Glow */}
             <pointLight
                 position={[camera.position.x, camera.position.y, camera.position.z]}
-                intensity={isBlackout ? 0.8 : 0.2} // Brighter flashlight during blackout
+                intensity={isGlobalFlicker ? 0.1 : 0.2} // Dim flashlight during horror event? Or keep it as safety? Let's dim it to make it scarier.
                 distance={15}
                 decay={2}
                 color="#ffffff"

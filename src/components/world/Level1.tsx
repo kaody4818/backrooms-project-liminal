@@ -1,11 +1,13 @@
 import { useCompoundBody, usePlane } from '@react-three/cannon';
-import { useLayoutEffect, useMemo, useRef, type ReactElement } from 'react';
+import { useLayoutEffect, useMemo, useRef, type ReactElement, useState, useEffect } from 'react';
 import { DoubleSide, InstancedMesh, MeshStandardMaterial, Object3D, RepeatWrapping, TextureLoader } from 'three';
+import { useGameStore } from '../../store/gameStore';
 
 import { CELL_SIZE, SECTOR_AQUILA, SECTOR_GILD, SECTOR_GOTHIC, SECTOR_OUROBOROS } from '../../utils/mapGenerator';
 import { Crate } from '../entities/Crate';
 import { Contraption } from '../entities/Contraption';
 import { ShadowWorker } from '../entities/ShadowWorker';
+import { Duller } from '../entities/Duller';
 import { ConcretePillar } from './ConcretePillar';
 import { FluorescentLight } from './FluorescentLight';
 import { Furniture } from '../entities/Furniture';
@@ -108,6 +110,7 @@ export const Level1 = ({ map, pillarPositions, cratePositions, contraptionPositi
         return {
             mass: 0,
             type: 'Static',
+            collisionFilterGroup: 2, // Group 2: Walls
             shapes
         };
     }, null, [map, worldWidth, worldHeight]);
@@ -281,6 +284,89 @@ export const Level1 = ({ map, pillarPositions, cratePositions, contraptionPositi
         return elements;
     }, [height, width, worldWidth, worldHeight]);
 
+    // --- Duller Logic ---
+    const [dullers, setDullers] = useState<{ id: number; position: [number, number, number] }[]>([]);
+    const { setGlobalFlicker } = useGameStore();
+
+    useEffect(() => {
+        // Flicker Event Loop
+        const triggerFlicker = () => {
+            // 5% chance every 10 seconds? Or simplified loop
+            // Let's make it periodic for gameplay: Every 60-120 seconds
+            // For testing/demo: Every 30 seconds
+
+            // Start Flicker
+            setGlobalFlicker(true);
+
+            // Spawn Duller
+            // Find a random floor tile
+            let attempts = 0;
+            let spawnX = 0;
+            let spawnZ = 0;
+            while (attempts < 50) {
+                const rZ = Math.floor(Math.random() * height);
+                const rX = Math.floor(Math.random() * width);
+                if (map[rZ][rX] === 0) {
+                    spawnX = rX * CELL_SIZE - worldWidth / 2 + CELL_SIZE / 2;
+                    spawnZ = rZ * CELL_SIZE - worldHeight / 2 + CELL_SIZE / 2;
+                    break;
+                }
+                attempts++;
+            }
+
+            // Add to list (Persistent)
+            const newId = Date.now();
+            setDullers(prev => [...prev, { id: newId, position: [spawnX, 1, spawnZ] }]);
+
+            // Stop Flicker after 4 seconds
+            setTimeout(() => {
+                setGlobalFlicker(false);
+            }, 4000);
+
+            // Schedule next event
+            const nextDelay = (30 + Math.random() * 60) * 1000; // 30s to 90s
+            timeoutId = setTimeout(triggerFlicker, nextDelay);
+        };
+
+        // Initial Schedule
+        let timeoutId = setTimeout(triggerFlicker, 10000); // First one after 10s
+
+        return () => clearTimeout(timeoutId);
+    }, [map, height, width, worldWidth, worldHeight, setGlobalFlicker]);
+
+    // Debug Tool: Spawn Duller (Shift + 8)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.shiftKey && e.code === 'Digit8') {
+                console.log("DEBUG: Spawning Duller triggered.");
+                setGlobalFlicker(true);
+
+                let attempts = 0;
+                let spawnX = 0;
+                let spawnZ = 0;
+                while (attempts < 50) {
+                    const rZ = Math.floor(Math.random() * height);
+                    const rX = Math.floor(Math.random() * width);
+                    if (map[rZ][rX] === 0) {
+                        spawnX = rX * CELL_SIZE - worldWidth / 2 + CELL_SIZE / 2;
+                        spawnZ = rZ * CELL_SIZE - worldHeight / 2 + CELL_SIZE / 2;
+                        break;
+                    }
+                    attempts++;
+                }
+
+                console.log(`DEBUG: Duller Spawned at [${spawnX}, ${spawnZ}]`);
+                setDullers(prev => [...prev, { id: Date.now(), position: [spawnX, 1, spawnZ] }]);
+
+                setTimeout(() => setGlobalFlicker(false), 4000);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [map, height, width, worldWidth, worldHeight, setGlobalFlicker]);
+
+
     return (
         <group>
             {/* --- Floor Instances --- */}
@@ -418,6 +504,11 @@ export const Level1 = ({ map, pillarPositions, cratePositions, contraptionPositi
                     />
                 );
             })}
+
+            {/* Dullers */}
+            {dullers.map((duller) => (
+                <Duller key={`duller-${duller.id}`} position={duller.position} />
+            ))}
 
             {/* Fog & Lights */}
             {lights}

@@ -55,6 +55,9 @@ interface GameState {
     // Teleportation
     teleportPos: [number, number, number] | null;
     setTeleportPos: (pos: [number, number, number] | null) => void;
+
+    isGlobalFlicker: boolean;
+    setGlobalFlicker: (status: boolean) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -170,6 +173,9 @@ export const useGameStore = create<GameState>((set) => ({
 
     teleportPos: null,
     setTeleportPos: (pos) => set({ teleportPos: pos }),
+
+    isGlobalFlicker: false,
+    setGlobalFlicker: (status) => set({ isGlobalFlicker: status }),
 }));
 
 

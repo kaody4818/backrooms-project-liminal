@@ -1,25 +1,28 @@
 import { useFrame } from '@react-three/fiber';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { MeshStandardMaterial } from 'three';
+import { useGameStore } from '../../store/gameStore';
 
 export const FluorescentLight = ({ position }: { position: [number, number, number] }) => {
     const materialRef = useRef<MeshStandardMaterial>(null);
-    const [offset] = useState(() => Math.random() * 100); // Random visual offset
+    const { isGlobalFlicker } = useGameStore();
 
     useFrame((state) => {
         if (!materialRef.current) return;
 
         const time = state.clock.getElapsedTime();
-        // Slightly different flicker pattern per light to avoid perfect sync
-        const flicker = Math.sin(time * 20 + offset) * Math.cos(time * 30 + 12);
 
         let intensity = 1.0;
-        if (Math.random() < 0.005) {
-            intensity = 0.1; // Dip
-        } else if (Math.random() < 0.005) {
-            intensity = 2.0; // Spike
+
+        if (isGlobalFlicker) {
+            // Global Event: Violent Strobe / Darkness
+            // 80% chance or OFF, 20% strobe
+            const strobe = Math.sin(time * 50);
+            if (strobe > 0.8) intensity = 3.0; // Bright flash
+            else intensity = 0.0; // Dark
         } else {
-            intensity = 1.0 + (flicker * 0.05); // Hum (Reduced flicker)
+            // Normal Behavior: Steady light
+            intensity = 1.0;
         }
 
         materialRef.current.emissiveIntensity = intensity;
@@ -43,7 +46,7 @@ export const FluorescentLight = ({ position }: { position: [number, number, numb
                     toneMapped={false}
                 />
             </mesh>
-            {/* PointLight and Audio removed for performance stability in Level 1 */}
+            {/* PointLight removed for performance, relying on emissive for bloom mostly */}
         </group>
     );
 };
