@@ -8,6 +8,9 @@ import { Contraption } from '../entities/Contraption';
 import { ShadowWorker } from '../entities/ShadowWorker';
 import { ConcretePillar } from './ConcretePillar';
 import { FluorescentLight } from './FluorescentLight';
+import { Furniture } from '../entities/Furniture';
+import { Door } from '../entities/Door';
+import type { FurnitureItem, DoorItem } from '../../utils/mapGenerator';
 
 interface Level1Props {
     map: number[][]; // 0=Floor, 1=Wall
@@ -16,11 +19,13 @@ interface Level1Props {
     contraptionPositions: [number, number][];
     workerPositions: [number, number][];
     sectorMap: number[][];
+    furniturePositions: FurnitureItem[];
+    doorPositions: DoorItem[];
 }
 
 const WAREHOUSE_HEIGHT = 6;
 
-export const Level1 = ({ map, pillarPositions, cratePositions, contraptionPositions, workerPositions, sectorMap }: Level1Props) => {
+export const Level1 = ({ map, pillarPositions, cratePositions, contraptionPositions, workerPositions, sectorMap, furniturePositions, doorPositions }: Level1Props) => {
     const height = map.length;
     const width = map[0].length;
 
@@ -383,6 +388,33 @@ export const Level1 = ({ map, pillarPositions, cratePositions, contraptionPositi
                     <ShadowWorker
                         key={`worker-${i}`}
                         position={[xPos, 1.25, zPos]}
+                    />
+                );
+            })}
+
+            {/* Furniture */}
+            {furniturePositions?.map((item, i) => {
+                const xPos = item.x * CELL_SIZE - worldWidth / 2 + CELL_SIZE / 2;
+                const zPos = item.y * CELL_SIZE - worldHeight / 2 + CELL_SIZE / 2;
+                return (
+                    <Furniture
+                        key={`furniture-${i}`}
+                        position={[xPos, 0, zPos]}
+                        rotation={item.rotation}
+                        type={item.type}
+                    />
+                );
+            })}
+
+            {/* Doors */}
+            {doorPositions?.map((item, i) => {
+                const xPos = item.x * CELL_SIZE - worldWidth / 2 + CELL_SIZE / 2;
+                const zPos = item.y * CELL_SIZE - worldHeight / 2 + CELL_SIZE / 2;
+                return (
+                    <Door
+                        key={`door-${i}`}
+                        position={[xPos, 0, zPos]}
+                        rotation={item.rotation}
                     />
                 );
             })}

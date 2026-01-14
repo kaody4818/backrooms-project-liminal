@@ -150,6 +150,23 @@ export const SECTOR_GILD = 2;
 export const SECTOR_CORRIDOR = 3;
 export const SECTOR_GOTHIC = 4;
 export const SECTOR_OUROBOROS = 5;
+export const SECTOR_OFFICE = 6;
+export const SECTOR_INFIRMARY = 7;
+export const SECTOR_RUBBER = 8;
+export const SECTOR_ART = 9;
+
+export type FurnitureItem = {
+    x: number;
+    y: number; // Grid Y (which is world Z)
+    type: 'computer_table' | 'hospital_bed' | 'chair' | 'painting';
+    rotation: number;
+};
+
+export type DoorItem = {
+    x: number;
+    y: number;
+    rotation: number; // 0 or Math.PI/2
+};
 
 export type Level1Data = {
     map: number[][],
@@ -157,7 +174,9 @@ export type Level1Data = {
     cratePositions: [number, number][],
     contraptionPositions: [number, number][],
     workerPositions: [number, number][],
-    sectorMap: number[][]
+    sectorMap: number[][],
+    furniturePositions: FurnitureItem[],
+    doorPositions: DoorItem[]
 };
 
 export const generateLevel1 = (width: number, height: number): Level1Data => {
@@ -172,6 +191,8 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
     const cratePositions: [number, number][] = [];
     const contraptionPositions: [number, number][] = [];
     const workerPositions: [number, number][] = [];
+    const furniturePositions: FurnitureItem[] = [];
+    const doorPositions: DoorItem[] = [];
 
     // Helper to check bounds
     const isInBounds = (x: number, y: number) => x > 0 && x < width - 1 && y > 0 && y < height - 1;
@@ -292,13 +313,7 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
         sectorMap[startY][startX] = SECTOR_CORRIDOR;
     }
 
-    // Force carve the EXACT center for player spawn calculation (0,0 world pos -> center index)
-    const centerIndexX = Math.floor(width / 2);
-    const centerIndexY = Math.floor(height / 2);
-    if (isInBounds(centerIndexX, centerIndexY)) {
-        map[centerIndexY][centerIndexX] = 0;
-        sectorMap[centerIndexY][centerIndexX] = SECTOR_CORRIDOR;
-    }
+
 
     const stack: [number, number][] = [[startX, startY]];
     const dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]];
@@ -424,12 +439,137 @@ export const generateLevel1 = (width: number, height: number): Level1Data => {
 
     punchEntrance(gothicRect, 2);
 
+    // --- 5. Generate Special Corridor Rooms ---
+    // Iterate to find suitable spots for special rooms
+    // We look for walls adjacent to a corridor floor to punch a room into.
+
+
+
+    // --- Better Room Generation Approach: Scan for Dead Ends / Small corridors ---
+    // Iterate map, find dead ends.
+    // Assign type.
+
+    // Dead Ends detection
+    const deadEnds: { x: number, y: number, entryDir: 'n' | 's' | 'e' | 'w' }[] = [];
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            if (map[y][x] === 0 && sectorMap[y][x] === SECTOR_CORRIDOR) {
+                let walls = 0;
+                if (map[y - 1][x] === 1) walls++;
+                if (map[y + 1][x] === 1) walls++;
+                if (map[y][x - 1] === 1) walls++;
+                if (map[y][x + 1] === 1) walls++;
+
+                if (walls === 3) {
+                    let entryDir: 'n' | 's' | 'e' | 'w' = 'n'; // Direction TO the exit? Or FROM the exit?
+                    // Let's say direction OF the open side.
+                    if (map[y - 1][x] === 0) entryDir = 'n';
+                    if (map[y + 1][x] === 0) entryDir = 's';
+                    if (map[y][x - 1] === 0) entryDir = 'w';
+                    if (map[y][x + 1] === 0) entryDir = 'e';
+                    deadEnds.push({ x, y, entryDir });
+                }
+            }
+        }
+    }
+
+    // Shuffle dead ends
+    const shuffledEnds = deadEnds.sort(() => Math.random() - 0.5);
+
+    // Also fix the Dead Ends logic which had the same issue
+    shuffledEnds.forEach((end, index) => {
+        if (index > 20) return;
+
+        let doorX = end.x;
+        let doorY = end.y;
+        let doorRot = 0;
+
+        // entryDir is direction OF the open side (Corridor).
+        // If 'n' (North), corridor is y-1. Boundary is y - 0.5.
+
+        if (end.entryDir === 'n') { doorY = end.y - 0.5; doorRot = 0; }
+        else if (end.entryDir === 's') { doorY = end.y + 0.5; doorRot = 0; }
+        else if (end.entryDir === 'w') { doorX = end.x - 0.5; doorRot = Math.PI / 2; }
+        else if (end.entryDir === 'e') { doorX = end.x + 0.5; doorRot = Math.PI / 2; }
+
+        const rand = Math.random();
+
+        if (rand < 0.4) {
+            sectorMap[end.y][end.x] = SECTOR_OFFICE;
+            furniturePositions.push({ x: end.x, y: end.y, type: 'computer_table', rotation: Math.random() * Math.PI * 2 });
+            doorPositions.push({ x: doorX, y: doorY, rotation: doorRot });
+        }
+        else if (rand < 0.5) {
+            sectorMap[end.y][end.x] = SECTOR_RUBBER;
+            furniturePositions.push({ x: end.x, y: end.y, type: 'chair', rotation: Math.random() * Math.PI * 2 });
+            doorPositions.push({ x: doorX, y: doorY, rotation: doorRot });
+        }
+    });
+
+    // For Larger rooms (Infirmary / Art), we need to forcibly CARVE space using the "createRoom" logic I thought of first,
+    // but simplified to just find a spot that doesn't overlap.
+
+    const tryCarveRoom = (type: number, w: number, h: number, decorType: 'hospital_bed' | 'painting') => {
+        for (let i = 0; i < 50; i++) {
+            const cx = Math.floor(Math.random() * (width - w - 2)) + 1;
+            const cy = Math.floor(Math.random() * (height - h - 2)) + 1;
+
+            // Check if space is Wall
+            let clear = true;
+            for (let y = cy; y < cy + h; y++) for (let x = cx; x < cx + w; x++) {
+                if (map[y][x] === 0) { clear = false; break; }
+            }
+            if (!clear) continue;
+
+            // Find connection
+            let connectX = -1, connectY = -1;
+            // Check only simple adjacency
+            // Try to find a neighbor on the side
+            if (map[cy - 1][cx + Math.floor(w / 2)] === 0 && sectorMap[cy - 1][cx] === SECTOR_CORRIDOR) { connectX = cx + Math.floor(w / 2); connectY = cy; } // Top
+            else if (map[cy + h][cx + Math.floor(w / 2)] === 0 && sectorMap[cy + h][cx] === SECTOR_CORRIDOR) { connectX = cx + Math.floor(w / 2); connectY = cy + h - 1; } // Bottom
+            else if (map[cy + Math.floor(h / 2)][cx - 1] === 0 && sectorMap[cy][cx - 1] === SECTOR_CORRIDOR) { connectX = cx; connectY = cy + Math.floor(h / 2); } // Left
+            else if (map[cy + Math.floor(h / 2)][cx + w] === 0 && sectorMap[cy][cx + w] === SECTOR_CORRIDOR) { connectX = cx + w - 1; connectY = cy + Math.floor(h / 2); } // Right
+
+            if (connectX !== -1) {
+                // Carve
+                for (let y = cy; y < cy + h; y++) for (let x = cx; x < cx + w; x++) {
+                    map[y][x] = 0;
+                    sectorMap[y][x] = type;
+                }
+
+                // Add Decor in middle
+                furniturePositions.push({ x: cx + Math.floor(w / 2), y: cy + Math.floor(h / 2), type: decorType, rotation: 0 });
+
+                // Add Door at connection boundary
+                let dx = connectX;
+                let dy = connectY;
+                let rot = 0;
+
+                // Recalculate precise boundary based on relationship
+                if (connectY < cy) { dy = cy - 0.5; dx = cx + Math.floor(w / 2); rot = 0; }
+                else if (connectY >= cy + h) { dy = cy + h - 0.5; dx = cx + Math.floor(w / 2); rot = 0; }
+                else if (connectX < cx) { dx = cx - 0.5; dy = cy + Math.floor(h / 2); rot = Math.PI / 2; }
+                else if (connectX >= cx + w) { dx = cx + w - 0.5; dy = cy + Math.floor(h / 2); rot = Math.PI / 2; }
+
+                doorPositions.push({ x: dx, y: dy, rotation: rot });
+                return;
+            }
+        }
+    };
+
+    // Create a few large rooms
+    tryCarveRoom(SECTOR_INFIRMARY, 3, 3, 'hospital_bed');
+    tryCarveRoom(SECTOR_ART, 4, 4, 'painting');
+    tryCarveRoom(SECTOR_INFIRMARY, 3, 3, 'hospital_bed');
+
     return {
         map,
         pillarPositions,
         cratePositions,
         contraptionPositions,
         workerPositions,
-        sectorMap
+        sectorMap,
+        furniturePositions,
+        doorPositions
     };
 };

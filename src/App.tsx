@@ -14,6 +14,7 @@ import { Level1 } from './components/world/Level1'; // Import Level1
 import { LightingController } from './components/world/LightingController';
 import { useGameStore } from './store/gameStore';
 import { generateMaze, generateLevel1, CELL_SIZE } from './utils/mapGenerator'; // Import generateLevel1
+
 import { HallucinationManager } from './components/logic/HallucinationManager';
 import { HazardManager } from './components/logic/HazardManager';
 import { MainMenu } from './components/ui/MainMenu';
@@ -102,60 +103,7 @@ const InventoryController = () => {
   return null;
 };
 
-const CheatController = () => {
-  const { setLevel, setPaused, setMenuOpen } = useGameStore();
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Cheat: Shift + 1 -> Warp to Level 1
-      if (e.shiftKey && e.key === '!') {
-        console.log("Cheat Activated: Warping to Level 1");
-        setLevel('LEVEL_1');
-        setPaused(false);
-        setMenuOpen(false);
-      }
-      // Cheat: Shift + 2 -> Warp to Level 0
-      if (e.shiftKey && e.key === '@') {
-        console.log("Cheat Activated: Warping to Level 0");
-        setLevel('LEVEL_0');
-        setPaused(false);
-        setMenuOpen(false);
-      }
-
-      // LEVEL 1 SECTOR CHEATS
-      // Aquila: Top-Left (Approx -75, 2, -75)
-      if (e.shiftKey && e.key === '#') { // Shift + 3
-        console.log("Cheat: Teleport to Sector Aquila");
-        useGameStore.getState().setTeleportPos([-75, 2, -75]);
-      }
-      // Gild: Bottom-Right (Approx 75, 2, 75)
-      if (e.shiftKey && e.key === '$') { // Shift + 4
-        console.log("Cheat: Teleport to Sector Gild");
-        useGameStore.getState().setTeleportPos([75, 2, 75]);
-      }
-      // Corridor Center
-      if (e.shiftKey && e.key === '%') { // Shift + 5
-        console.log("Cheat: Teleport to Center");
-        useGameStore.getState().setTeleportPos([0, 2, 0]);
-      }
-      // Gothic: Top-Right (Approx 75, 2, -75)
-      if (e.shiftKey && e.key === '^') { // Shift + 6
-        console.log("Cheat: Teleport to Sector Gothic");
-        useGameStore.getState().setTeleportPos([75, 2, -75]);
-      }
-      // Ouroboros: Bottom-Left (Approx -75, 2, 75)
-      if (e.shiftKey && e.key === '&') { // Shift + 7
-        console.log("Cheat: Teleport to Sector Ouroboros");
-        useGameStore.getState().setTeleportPos([-75, 2, 75]);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setLevel, setPaused, setMenuOpen]);
-
-  return null;
-}
 
 
 // Actually simpler:
@@ -240,11 +188,11 @@ function App() {
   }, []);
 
   // Generate Level 1 Map (Warehouse)
-  const { map: mapL1, pillarPositions: pillarPositionsL1, cratePositions: cratePositionsL1, contraptionPositions: contraptionPositionsL1, workerPositions: workerPositionsL1, startPosL1, sectorMap: sectorMapL1 } = useMemo(() => {
+  const { map: mapL1, pillarPositions: pillarPositionsL1, cratePositions: cratePositionsL1, contraptionPositions: contraptionPositionsL1, workerPositions: workerPositionsL1, startPosL1, sectorMap: sectorMapL1, furniturePositions: furniturePositionsL1, doorPositions: doorPositionsL1 } = useMemo(() => {
     const w = 61;
     const h = 61;
     // Use generateLevel1 (Safe Wrapper)
-    const { map, pillarPositions, cratePositions, contraptionPositions, workerPositions, sectorMap } = generateLevel1(w, h);
+    const { map, pillarPositions, cratePositions, contraptionPositions, workerPositions, sectorMap, furniturePositions, doorPositions } = generateLevel1(w, h);
 
     // Start position for Level 1 (Center)
     // 31x31 center is 15,15.
@@ -258,7 +206,10 @@ function App() {
       contraptionPositions,
       workerPositions,
       sectorMap, // Pass the generated sectorMap
-      startPosL1: [0, 2, 0] as [number, number, number]
+      furniturePositions,
+      doorPositions,
+      // Start pos adjusted to [5, 2, 5] (Index 31,31) because Maze connects odd indices. Index 30 (0,0,0) is a wall.
+      startPosL1: [5, 2, 5] as [number, number, number]
     };
   }, []);
 
@@ -286,10 +237,9 @@ function App() {
 
       {isGameOver && <GameOver hasWon={hasWon} />}
 
-      {isPaused && <PauseMenu />}
+      {isPaused && <PauseMenu furniturePositions={furniturePositionsL1} />}
 
       <InventoryController />
-      <CheatController />
       <Inventory />
 
       {/* Game UI Layer */}
@@ -364,6 +314,8 @@ function App() {
               contraptionPositions={contraptionPositionsL1}
               workerPositions={workerPositionsL1}
               sectorMap={sectorMapL1}
+              furniturePositions={furniturePositionsL1}
+              doorPositions={doorPositionsL1}
             />
           )}
 
