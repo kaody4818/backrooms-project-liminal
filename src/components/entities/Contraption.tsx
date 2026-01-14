@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRef, useState } from 'react';
-import { Vector3 } from 'three';
+import { Vector3, Group } from 'three';
 import { useGameStore } from '../../store/gameStore';
 
 export const Contraption = ({ position }: { position: [number, number, number] }) => {
@@ -8,30 +8,35 @@ export const Contraption = ({ position }: { position: [number, number, number] }
     const setHealth = useGameStore((state) => state.setHealth);
     const setInteractionText = useGameStore((state) => state.setInteractionText);
     const { camera } = useThree();
-    const ref = useRef<any>(null);
+    const groupRef = useRef<Group>(null);
+    const gearRef = useRef<Group>(null);
     const [lastDamageTime, setLastDamageTime] = useState(0);
 
     useFrame((state) => {
-        if (!ref.current || isPaused) return;
+        if (!groupRef.current || isPaused) return;
 
-        // Rotation animation
-        ref.current.rotation.y += 0.01;
-        ref.current.rotation.z += 0.005;
+        // 1. Rotate Main Hub (Vertical Spin)
+        // Removed Z-axis rotation to prevent floor clipping.
+        groupRef.current.rotation.y += 0.02;
+
+        // 2. Rotate Internal Gear (Counter-spin)
+        if (gearRef.current) {
+            gearRef.current.rotation.y -= 0.05;
+            gearRef.current.rotation.z += 0.02; // Local wobble is fine if high enough
+        }
 
         // Damage Logic (Horizontal Distance Only)
-        // Player camera is at y=1.6, contraption at y=0. Using 3D distance fails.
         const playerPos = new Vector3(camera.position.x, 0, camera.position.z);
-        const entityPos = new Vector3(ref.current.position.x, 0, ref.current.position.z);
+        const entityPos = new Vector3(groupRef.current.position.x, 0, groupRef.current.position.z);
         const dist = playerPos.distanceTo(entityPos);
 
-        if (dist < 1.0) { // Radius 1.0
+        if (dist < 1.2) { // Slightly larger radius
             const now = state.clock.elapsedTime;
-            if (now - lastDamageTime > 1.0) { // 1 second cooldown
+            if (now - lastDamageTime > 1.0) {
                 setHealth((prev) => Math.max(0, prev - 10));
-                setInteractionText("Ow! That machinery is dangerous!");
+                setInteractionText("Warning: Industrial Hazard!");
                 setLastDamageTime(now);
 
-                // Clear text after 2 seconds
                 setTimeout(() => {
                     useGameStore.getState().setInteractionText(null);
                 }, 2000);
@@ -40,22 +45,47 @@ export const Contraption = ({ position }: { position: [number, number, number] }
     });
 
     return (
-        <group ref={ref} position={position}>
-            {/* Main body */}
-            <mesh position={[0, 0.5, 0]}>
-                <boxGeometry args={[1, 1, 1]} />
-                <meshStandardMaterial color="#554433" roughness={0.8} />
+        <group ref={groupRef} position={position}>
+            {/* 1. Base (Heavy Stand) */}
+            <mesh position={[0, 0.2, 0]} castShadow receiveShadow>
+                <cylinderGeometry args={[0.6, 0.8, 0.4, 8]} />
+                <meshStandardMaterial color="#2a2a2a" roughness={0.9} />
             </mesh>
-            {/* Spikes/Details */}
-            <mesh position={[0.4, 0.8, 0.4]} rotation={[0.5, 0.5, 0]}>
-                <coneGeometry args={[0.2, 1, 8]} />
-                <meshStandardMaterial color="#888888" metalness={0.8} />
+
+            {/* 2. Main Center Shaft */}
+            <mesh position={[0, 1.5, 0]} castShadow receiveShadow>
+                <cylinderGeometry args={[0.2, 0.2, 3, 6]} />
+                <meshStandardMaterial color="#888" metalness={0.6} roughness={0.4} />
             </mesh>
-            {/* Raised the second box to not clip underground. 0.2 -> 0.8 (Base at ~0.05) */}
-            <mesh position={[-0.4, 0.8, -0.4]} rotation={[-0.5, 0, 0.5]}>
-                <boxGeometry args={[0.3, 1.5, 0.3]} />
-                <meshStandardMaterial color="#333333" metalness={0.5} />
+
+            {/* 3. Top Cap */}
+            <mesh position={[0, 2.8, 0]} castShadow receiveShadow>
+                <cylinderGeometry args={[0.5, 0.2, 0.4, 8]} />
+                <meshStandardMaterial color="#444" />
             </mesh>
+
+            {/* 4. Spinning "Grinder" mechanism (Child object) */}
+            <group ref={gearRef} position={[0, 1.5, 0]}>
+                {/* Horizontal Blades */}
+                <mesh rotation={[0, 0, Math.PI / 2]} castShadow receiveShadow>
+                    <boxGeometry args={[0.1, 2.5, 0.4]} />
+                    <meshStandardMaterial color="#a00" metalness={0.7} />
+                </mesh>
+                <mesh rotation={[0, Math.PI / 2, Math.PI / 2]} castShadow receiveShadow>
+                    <boxGeometry args={[0.1, 2.5, 0.4]} />
+                    <meshStandardMaterial color="#a00" metalness={0.7} />
+                </mesh>
+
+                {/* Diagonal Spikes */}
+                <mesh rotation={[0, Math.PI / 4, Math.PI / 4]} position={[0, 0, 0]} castShadow receiveShadow>
+                    <boxGeometry args={[0.1, 1.8, 0.1]} />
+                    <meshStandardMaterial color="#silver" />
+                </mesh>
+                <mesh rotation={[0, -Math.PI / 4, -Math.PI / 4]} position={[0, 0, 0]} castShadow receiveShadow>
+                    <boxGeometry args={[0.1, 1.8, 0.1]} />
+                    <meshStandardMaterial color="#silver" />
+                </mesh>
+            </group>
         </group>
     );
 };
