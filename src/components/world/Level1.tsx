@@ -507,7 +507,7 @@ export const Level1 = ({ map, pillarPositions, cratePositions, contraptionPositi
 
             {/* Dullers */}
             {dullers.map((duller) => (
-                <Duller key={`duller-${duller.id}`} position={duller.position} />
+                <Duller key={`duller-${duller.id}`} position={duller.position} map={map} />
             ))}
 
             {/* Fog & Lights */}
